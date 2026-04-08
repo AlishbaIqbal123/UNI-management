@@ -1,0 +1,10 @@
+{
+  "name": "COMSATS University Management System",
+  "short_name": "CUI UMS",
+  "description": "Official University Management OS for COMSATS University Islamabad",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a14",
+  "theme_color": "#7c3aed",
+  "icons": []
+}
