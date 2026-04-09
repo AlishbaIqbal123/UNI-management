@@ -17,12 +17,12 @@ const Login = ({ onLogin, setStep, loginStep, authData, setAuthData, regSubStep,
               <div className="role-chip" onClick={() => setStep('faculty')}>Faculty</div>
               <div className="role-chip" style={{border: '1px solid var(--accent)'}} onClick={() => setStep('finance')}>Finance</div>
             </div>
-            <div className="credentials-tip mt-24" style={{fontSize: '12px', opacity: 0.8, background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '12px'}}>
-                <p><strong>Admin:</strong> ADMIN / admin</p>
-                <p><strong>Student:</strong> A01 / 123</p>
-                <p><strong>Faculty:</strong> F1 / 123</p>
-                <p><strong>Finance:</strong> FIN1 / admin</p>
-            </div>
+             <div className="credentials-tip mt-24" style={{fontSize: '12px', opacity: 0.8, background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '12px'}}>
+                 <p><strong>Admin:</strong> ADMIN / admin</p>
+                 <p><strong>Student:</strong> S001 / 123</p>
+                 <p><strong>Faculty:</strong> VHR-F-001 / 123</p>
+                 <p><strong>Finance:</strong> FIN1 / admin</p>
+             </div>
 
             <p className="mt-24" style={{opacity: 0.7}}>New to the university? <span className="link-gold" style={{color: 'var(--accent)', cursor: 'pointer', fontWeight: '700'}} onClick={() => setStep('register')}>Apply Now</span></p>
           </div>

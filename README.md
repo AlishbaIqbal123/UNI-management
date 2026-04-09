@@ -54,6 +54,33 @@ A high-fidelity institutional management system designed to synchronize Administ
 - **Backend/DB**: Supabase (PostgreSQL with Real-time WebSockets)
 - **State Management**: Centralized UMS Data Hook with persistence recovery.
 - **Reporting**: Native Institutional Export Utilities.
+## 🚀 Institutional Execution Guide (Local Dev)
+
+Follow these steps to synchronize the repository and launch the portal on your workstation.
+
+### 📦 Prerequisites
+- **Node.js** (v18.x or later highly recommended)
+- **npm** (Standard Package Manager)
+
+### 🔧 Initialization & Deployment
+
+1. **Navigate to the Application Core**:
+   ```bash
+   cd frontend
+   ```
+
+2. **Synchronize Registry Dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Launch Institutional Portal**:
+   ```bash
+   npm run dev
+   ```
+
+4. **Synchronize Access**:
+   Once the server is active, navigate to `http://localhost:5173` (or the port specified in your terminal). Use the verified **System Gateway** credentials listed in the next section to enter the portal.
 
 ---
 
