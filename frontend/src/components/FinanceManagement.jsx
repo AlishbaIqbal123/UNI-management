@@ -90,7 +90,12 @@ const FinanceManagement = ({ finance, user, students, setFinance, openForm }) =>
             </div>
             <div style={{marginLeft:'auto', textAlign:'right'}}>
                 <span style={{fontSize:'12px', opacity:0.6}}>Total Outstanding</span>
-                <h3 style={{color:'#ef4444', margin:0}}>PKR {filteredFinance.reduce((acc, f) => acc + f.dueAmount, 0).toLocaleString()}</h3>
+                <h3 style={{color:'#ef4444', margin:0}}>
+                    PKR {students.reduce((acc, s) => {
+                        const f = finance.find(fin => fin.studentID === s.id || fin.studentID === s.dbID);
+                        return acc + (f ? f.dueAmount : 45000);
+                    }, 0).toLocaleString()}
+                </h3>
             </div>
         </div>
       )}
@@ -108,15 +113,29 @@ const FinanceManagement = ({ finance, user, students, setFinance, openForm }) =>
               </tr>
             </thead>
             <tbody>
-              {filteredFinance.map(f => {
-                  const student = students.find(s => s.id === f.studentID || s.dbID === f.studentID);
+              {students.filter(s => {
+                  const searchMatches = (s.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                       (s.regNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                       (s.id || '').toLowerCase().includes(searchTerm.toLowerCase());
+                  const batchMatches = batchFilter === 'All' || s.batch === batchFilter;
+                  
+                  const f = finance.find(fin => fin.studentID === s.id || fin.studentID === s.dbID);
+                  const statusMatches = statusFilter === 'All' || 
+                                       (statusFilter === 'Cleared' && (f?.dueAmount || 0) === 0 && f) || 
+                                       (statusFilter === 'Pending' && ((f?.dueAmount || 0) > 0 || !f));
+                  
+                  return searchMatches && batchMatches && statusMatches;
+              }).map(s => {
+                  const f = finance.find(fin => fin.studentID === s.id || fin.studentID === s.dbID) || 
+                            { amountPaid: 0, dueAmount: 45000, studentID: s.id, isDefault: true };
+                  
                   return (
-                    <tr key={f.recordID}>
+                    <tr key={s.dbID || s.id}>
                       <td>
                         <div className="user-info-cell">
-                          <span className="user-name-cell" style={{fontWeight:600, color:'white', fontSize:'15px'}}>{student?.name || 'Academic Holder'}</span>
+                          <span className="user-name-cell" style={{fontWeight:600, color:'white', fontSize:'15px'}}>{s.name}</span>
                           <span className="font-monospace" style={{fontSize:'12px', fontWeight:600, color:'var(--accent)', background:'rgba(255,255,255,0.05)', padding:'2px 8px', borderRadius:'4px'}}>
-                            {student?.regNumber || (student?.id ? `FA24-BCS-${student.id.replace('S', '')}` : 'PENDING_REG')}
+                            {s.regNumber || `FA24-BCS-${s.id.replace('S', '')}`}
                           </span>
                         </div>
                       </td>
@@ -134,6 +153,7 @@ const FinanceManagement = ({ finance, user, students, setFinance, openForm }) =>
                   );
               })}
             </tbody>
+
           </table>
         </div>
       </div>
