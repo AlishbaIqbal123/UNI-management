@@ -293,8 +293,14 @@ function App() {
               { label: 'Total Students', value: students.length, action: 'VIEW_STUDENTS', trend: 'Full Registry' },
               { label: 'Total Faculty',  value: faculty.length,  action: 'VIEW_FACULTY',  trend: 'All Staff' },
               { label: 'Course Catalog', value: courses.length,  action: 'VIEW_CATALOG',  trend: 'Active Courses' },
-              { label: 'Fee Status',     value: `${finance.filter(f => (f.dueAmount || 0) === 0).length}/${finance.length} Clear`, action: 'VIEW_FINANCE', trend: 'Cleared' },
+              { label: 'Blocked Students', value: students.filter(s => {
+                  const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID);
+                  const isCleared = fin && (fin.dueAmount === 0);
+                  const hasOverride = adminOverrides.some(o => o.studentID === s.id && o.registrationAllowed);
+                  return !isCleared && !hasOverride;
+              }).length, action: 'VIEW_BLOCKED', warning: true },
             ]
+
           : user.role === ROLES.STUDENT
           ? [
               { label: 'Enrolled Courses', value: myEnrolments.length, action: 'VIEW_REGISTRATION', trend: 'View Courses' },
@@ -321,7 +327,9 @@ function App() {
             if (type === 'VIEW_FACULTY')     setActiveTab('faculty');
             if (type === 'VIEW_CATALOG')     setActiveTab('catalog');
             if (type === 'VIEW_FINANCE')     setActiveTab(user.role === ROLES.STUDENT ? 'my-finance' : 'finance');
+            if (type === 'VIEW_BLOCKED')     setActiveTab('blocked-audit');
             if (type === 'VIEW_CALENDAR')    setActiveTab('calendar');
+
             if (type === 'VIEW_REGISTRATION')setActiveTab('registration');
             if (type === 'VIEW_MY_RESULTS')  setActiveTab('academic-progress');
             if (type === 'VIEW_GRADING')     setActiveTab('grading');
@@ -454,7 +462,7 @@ function App() {
             </div>
             <div className="table-card-premium glass-card">
               <table className="premium-table">
-                <thead><tr><th>Student Record</th><th>Identity</th><th>Outstanding</th><th>Override Status</th></tr></thead>
+                <thead><tr><th>Student Record</th><th>Login ID</th><th>Registry #</th><th>Outstanding</th><th>Override Status</th></tr></thead>
                 <tbody>
                   {students.filter(s => {
                     const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID);
@@ -465,8 +473,9 @@ function App() {
                     const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID);
                     return (
                       <tr key={s.id}>
-                        <td><span style={{fontWeight:600}}>{s.name}</span></td>
-                        <td className="font-monospace" style={{fontSize:'12px'}}>{s.regNumber || s.id}</td>
+                        <td><span style={{fontWeight:600, color:'white'}}>{s.name}</span></td>
+                        <td><span className="badge-premium" style={{background:'rgba(255,255,255,0.05)', color:'var(--accent)', fontSize:'12px'}}>{s.id}</span></td>
+                        <td className="font-monospace" style={{fontSize:'12px', opacity:0.8}}>{s.regNumber || 'FA24-ADM-TBD'}</td>
                         <td style={{color:'#ef4444', fontWeight:700}}>PKR {(fin?.dueAmount || 45000).toLocaleString()}</td>
                         <td><span className="badge-premium" style={{opacity:0.5}}>No Active Override</span></td>
                       </tr>
@@ -475,6 +484,7 @@ function App() {
                 </tbody>
               </table>
             </div>
+
           </div>
         );
 
