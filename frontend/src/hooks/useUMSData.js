@@ -6,17 +6,18 @@ const save = (key, data) => localStorage.setItem(key, JSON.stringify(data));
 
 export function useUMSData() {
   const [students, setStudents] = useState(() => load('ums_students_v4', [
-    { id: 'S001', dbID: 'a0000000-0000-0000-0000-000000000001', name: 'Amna Pervez', regNumber: 'FA24-BCS-055', batch: 'Fall 2024', program: 'BS Computer Science', password: '123', email: 'amna@cui.edu.pk', phone: '+92 321 4567890' },
-    { id: 'S002', dbID: 'a0000000-0000-0000-0000-000000000002', name: 'Maham Shaukat', regNumber: 'SP25-BSE-012', batch: 'Spring 2025', program: 'BS Software Engineering', password: '123', email: 'maham@cui.edu.pk', phone: '+92 333 9876543' },
-    { id: 'S003', dbID: 'a0000000-0000-0000-0000-000000000003', name: 'Ali Hassan', regNumber: 'FA24-BCS-003', batch: 'Fall 2024', program: 'BS Computer Science', password: '123', email: 'ali@cui.edu.pk', phone: '+92 300 1122334' },
-    { id: 'S004', dbID: 'a0000000-0000-0000-0000-000000000004', name: 'Ayesha Malik', regNumber: 'SP26-BSE-045', batch: 'Spring 2026', program: 'BS Software Engineering', password: '123', email: 'ayesha@cui.edu.pk', phone: '+92 315 5566778' },
-    { id: 'S005', dbID: 'a0000000-0000-0000-0000-000000000005', name: 'Kamran Ahmed', regNumber: 'FA24-BCS-005', batch: 'Fall 2024', program: 'BS Computer Science', password: '123', email: 'kamran@cui.edu.pk', phone: '+92 345 8899001' },
-    { id: 'S006', dbID: 'a0000000-0000-0000-0000-000000000006', name: 'Sana Khan', regNumber: 'SP26-BSE-001', batch: 'Spring 2026', program: 'BS Software Engineering', password: '123', email: 'sana@cui.edu.pk', phone: '+92 322 3344556' },
-    { id: 'S007', dbID: 'a0000000-0000-0000-0000-000000000007', name: 'Zainab Ahmed', regNumber: 'FA24-BCS-007', batch: 'Fall 2024', program: 'BS Computer Science', password: '123', email: 'zainab@cui.edu.pk', phone: '+92 321 4455667' },
-    { id: 'S008', dbID: 'a0000000-0000-0000-0000-000000000008', name: 'Hamza Malik', regNumber: 'FA24-BSE-008', batch: 'Fall 2024', program: 'BS Software Engineering', password: '123', email: 'hamza@cui.edu.pk', phone: '+92 333 7788990' },
-    { id: 'S009', dbID: 'a0000000-0000-0000-0000-000000000009', name: 'Ayesha Khan', regNumber: 'FA24-BSE-009', batch: 'Fall 2024', program: 'BS Software Engineering', password: '123', email: 'akhan@cui.edu.pk', phone: '+92 300 0011223' },
-    { id: 'S010', dbID: 'a0000000-0000-0000-0000-000000000010', name: 'Muhammad Ali', regNumber: 'FA24-BCS-010', batch: 'Fall 2024', program: 'BS Computer Science', password: '123', email: 'ali@cui.edu.pk', phone: '+92 315 3344557' }
+    { id: 'S001', dbID: 'a0000000-0000-0000-0000-000000000001', name: 'Amna Pervez', regNumber: 'FA24-BCS-055', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'amna@cui.edu.pk', phone: '+92 321 4567890' },
+    { id: 'S002', dbID: 'a0000000-0000-0000-0000-000000000002', name: 'Maham Shaukat', regNumber: 'SP25-BSE-012', batch: 'Spring 2025', section: 'B', program: 'BS Software Engineering', password: '123', email: 'maham@cui.edu.pk', phone: '+92 333 9876543' },
+    { id: 'S003', dbID: 'a0000000-0000-0000-0000-000000000003', name: 'Ali Hassan', regNumber: 'FA24-BCS-003', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'ali@cui.edu.pk', phone: '+92 300 1122334' },
+    { id: 'S004', dbID: 'a0000000-0000-0000-0000-000000000004', name: 'Ayesha Malik', regNumber: 'SP26-BSE-045', batch: 'Spring 2026', section: 'A', program: 'BS Software Engineering', password: '123', email: 'ayesha@cui.edu.pk', phone: '+92 315 5566778' },
+    { id: 'S005', dbID: 'a0000000-0000-0000-0000-000000000005', name: 'Kamran Ahmed', regNumber: 'FA24-BCS-005', batch: 'Fall 2024', section: 'B', program: 'BS Computer Science', password: '123', email: 'kamran@cui.edu.pk', phone: '+92 345 8899001' },
+    { id: 'S006', dbID: 'a0000000-0000-0000-0000-000000000006', name: 'Sana Khan', regNumber: 'SP26-BSE-001', batch: 'Spring 2026', section: 'B', program: 'BS Software Engineering', password: '123', email: 'sana@cui.edu.pk', phone: '+92 322 3344556' },
+    { id: 'S007', dbID: 'a0000000-0000-0000-0000-000000000007', name: 'Zainab Ahmed', regNumber: 'FA24-BCS-007', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'zainab@cui.edu.pk', phone: '+92 321 4455667' },
+    { id: 'S008', dbID: 'a0000000-0000-0000-0000-000000000008', name: 'Hamza Malik', regNumber: 'FA24-BSE-008', batch: 'Fall 2024', section: 'B', program: 'BS Software Engineering', password: '123', email: 'hamza@cui.edu.pk', phone: '+92 333 7788990' },
+    { id: 'S009', dbID: 'a0000000-0000-0000-0000-000000000009', name: 'Ayesha Khan', regNumber: 'FA24-BSE-009', batch: 'Fall 2024', section: 'A', program: 'BS Software Engineering', password: '123', email: 'akhan@cui.edu.pk', phone: '+92 300 0011223' },
+    { id: 'S010', dbID: 'a0000000-0000-0000-0000-000000000010', name: 'Muhammad Ali', regNumber: 'FA24-BCS-010', batch: 'Fall 2024', section: 'B', program: 'BS Computer Science', password: '123', email: 'ali@cui.edu.pk', phone: '+92 315 3344557' }
   ]));
+
 
   const [faculty, setFaculty] = useState(() => load('ums_faculty_v4', [
     { id: 'VHR-F-001', dbID: 'f1', facultyName: 'Dr. Muhammad Nasir', designation: 'Assistant Professor', password: '123', email: 'nasir@cui.edu.pk', phone: '+92 312 0001112' },

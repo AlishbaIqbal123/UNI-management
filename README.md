@@ -63,22 +63,24 @@ The system enforces a **Financial Gate** on student registrations. Below are the
 
 | Role | Identity (ID/Reg) | Auth Code | Status / Purpose |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `ADM` | `admin` | Full system access & Override capability |
+| **Admin** | `ADMIN` | `admin` | Full system access & Override capability |
 | **Finance** | `FIN1` | `admin` | Manage student ledger & clearance |
 | **Faculty** | `VHR-F-001` | `123` | Course management & grading |
+| **Master Student** | `ADM` | `admin` | High-level Student Demo Profile |
 | **Student (Cleared)** | `S001` / `FA24-BCS-055` | `123` | **Allowed** to register (Fee Cleared) |
 | **Student (Blocked)** | `S003` / `FA24-BCS-003` | `123` | **Blocked** (Outstanding Dues: PKR 45,000) |
 
 ### 🔄 The Registration Lifecycle Logic
 
 1. **Default State (Financial Block)**: 
-   If a student has a non-zero `due_amount` in the Finance Ledger, the "Register" button in the Academic Portal is automatically disabled.
+   If a student has a non-zero `due_amount` in the Finance Ledger, the "Register" button in the Academic Portal is replaced with a high-visibility **"LOCKED: ASK ADMIN"** prompt.
    
 2. **Finance Clearance**: 
-   Login as **Finance (FIN1/admin)** -> Navigate to **Finance Hub** -> Update the student record's `Due Amount` to `0`. Once saved, the student will immediately be able to register for courses.
+   Login as **Finance (FIN1/admin)** -> Navigate to **Financial Hub** -> Update the student record's `Due Amount` to `0`. Once saved, the student will immediately be able to register for courses.
 
 3. **Administrative Override**: 
-   If a student cannot pay immediately but requires enrollment (e.g., scholarship processing), an **Admin (ADM/admin)** can navigate to the **Overrides** module and grant a manual registration allowance. This bypasses the financial block without clearing the actual debt.
+   If a student cannot pay immediately but requires enrollment, an **Admin (ADMIN/admin)** can navigate to the **Overrides** module and grant a manual registration allowance. During this process, the Admin must provide a **Note** explaining the exception, which will be visible to the student in their portal.
+
 
 ---
 *Developed for Excellence in Institutional Administration.*

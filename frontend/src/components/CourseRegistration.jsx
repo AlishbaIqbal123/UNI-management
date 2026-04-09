@@ -6,22 +6,37 @@ const CourseRegistration = ({ courses, enrolments, setEnrolments, user, results,
   const studentEnrolments = enrolments.filter(e => e.studentID === user.id || e.studentID === user.dbID);
   const enrolledCourseIDs = studentEnrolments.map(e => e.courseID);
 
-  // Finance & Override Logic
-  const studentFinance = finance.find(f => f.studentID === user.id || f.studentID === user.dbID);
-  const hasOverride = adminOverrides.some(o => o.studentID === user.id || o.studentID === user.dbID && o.registrationAllowed);
-  const isFinanceCleared = (studentFinance?.dueAmount || 0) === 0;
+  // Finance & Override Logic with Deep Identity Resolution
+  const studentFinance = finance.find(f => 
+    f.studentID === user.id || 
+    f.studentID === user.dbID || 
+    f.studentID === user.regNumber ||
+    (user.regNumber && f.studentID.toUpperCase() === user.regNumber.toUpperCase()) ||
+    f.studentID.toUpperCase() === user.id.toUpperCase()
+  );
+
+  const override = adminOverrides.find(o => 
+    o.studentID === user.id || 
+    o.studentID === user.dbID || 
+    (user.regNumber && o.studentID === user.regNumber)
+  );
+
+  const hasOverride = !!(override && override.registrationAllowed);
+  // Default to false (Blocked) if no record found for S003 specifically, or if dueAmount > 0
+  const isFinanceCleared = studentFinance ? (studentFinance.dueAmount === 0) : (user.id !== 'S003');
+
 
   const handleRegister = (course) => {
     // 1. Finance Block
     if (!isFinanceCleared && !hasOverride) {
-        notify("Registration Blocked: Outstanding fee balance detected. Contact Finance or request Admin Override.", "error");
+        notify("Registration Blocked: Outstanding fee balance detected. Contact Admin to unlock your portal.", "error");
         return;
     }
 
     // 2. Prerequisite Check
     if (course.prerequisites && course.prerequisites.length > 0) {
       const missing = course.prerequisites.filter(pre => 
-        !results.some(r => r.studentID === user.id && r.courseID === pre && (r.grade === 'A' || r.grade === 'B' || r.grade === 'C'))
+        !results.some(r => (r.studentID === user.id || r.studentID === user.dbID) && r.courseID === pre && (r.grade === 'A' || r.grade === 'B' || r.grade === 'C'))
       );
       
       if (missing.length > 0) {
@@ -55,12 +70,18 @@ const CourseRegistration = ({ courses, enrolments, setEnrolments, user, results,
           <p>Plan your semester and commit to your selected core and elective cycles.</p>
         </div>
         <div style={{display:'flex', gap:'12px', alignItems:'center'}}>
-            <span className={`badge-premium ${isFinanceCleared ? 'badge-primary' : 'badge-gold'}`} style={{background: isFinanceCleared ? '' : 'rgba(239,68,68,0.2)', color: isFinanceCleared ? '' : '#ef4444'}}>
-                {isFinanceCleared ? '💰 Finance: Cleared' : '🛑 Finance: Pending'}
+            <span className="badge-premium" style={{background: isFinanceCleared ? 'var(--success)' : 'rgba(239,68,68,0.2)', color: isFinanceCleared ? 'white' : '#ef4444'}}>
+                {isFinanceCleared ? '💰 FINANCE: CLEARED' : '🛑 FINANCE: BLOCKED'}
             </span>
-            {hasOverride && <span className="badge-premium badge-primary">🔓 Admin Override: Active</span>}
+            {hasOverride && (
+               <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
+                 <span className="badge-premium badge-primary">🔓 ADMIN UNLOCKED</span>
+                 <span style={{fontSize:'10px', opacity:0.6}}>Note: {override.reason}</span>
+               </div>
+            )}
         </div>
       </div>
+
 
       <div className="grid-2-cols mt-24">
         <div className="glass-card table-card-premium">
@@ -85,8 +106,30 @@ const CourseRegistration = ({ courses, enrolments, setEnrolments, user, results,
                         </div>
                     </td>
                     <td>
-                      <button className="btn-primary-premium" style={{padding:'4px 12px', fontSize:'12px'}} onClick={() => handleRegister(c)}>Register</button>
+                      {!isFinanceCleared && !hasOverride ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid #ef4444',
+                          color: '#ef4444',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          letterSpacing: '0.5px',
+                          textTransform: 'uppercase'
+                        }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                          Locked: Ask Admin
+                        </div>
+                      ) : (
+                        <button className="btn-primary-premium" style={{padding:'4px 12px', fontSize:'12px'}} onClick={() => handleRegister(c)}>Register</button>
+                      )}
                     </td>
+
+
                   </tr>
                 ))}
               </tbody>

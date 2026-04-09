@@ -149,65 +149,66 @@ function App() {
 
     let found = null;
     
-    // 1. MASTER BYPASS for Institutional Demo Accounts
-    if (inputID === 'ADMIN' || inputID === 'ADM' || inputID === 'A01') {
-        if (inputPass === 'admin') found = { name: 'CUI Institutional Admin', id: 'ADM', role: ROLES.ADMIN };
+    // 1. MASTER BYPASS for Institutional Demo Accounts (Hardcoded with strict roles)
+    if (inputID.toUpperCase() === 'ADMIN' && inputPass === 'admin') {
+        found = { name: 'Institutional Administrator', id: 'ADMIN', role: ROLES.ADMIN };
+    } else if (inputID.toUpperCase() === 'ADM' && inputPass === 'admin') {
+        found = { name: 'Master Demo Student (ADM)', id: 'ADM', role: ROLES.STUDENT, regNumber: 'FA24-ADM-001' };
+    } else if (inputID === 'FIN1' && inputPass === 'admin') {
+        found = { id: 'FIN1', name: 'Finance Hub (Adnan)', role: ROLES.FINANCE };
+    } else if (inputID === 'VHR-F-001' && inputPass === '123') {
+        found = { id: 'VHR-F-001', name: 'Dr. Muhammad Nasir', role: ROLES.FACULTY };
+    } else if (inputID === 'S001' && inputPass === '123') {
+        found = { id: 'S001', name: 'Amna Pervez', role: ROLES.STUDENT, regNumber: 'FA24-BCS-055' };
+    } else if (inputID === 'S003' && inputPass === '123') {
+        found = { id: 'S003', name: 'Ali Hassan', role: ROLES.STUDENT, regNumber: 'FA24-BCS-003' };
     }
-    
-    // Hardcoded fail-safes for README credentials
-    if (!found) {
-        if (role === ROLES.FINANCE && inputID === 'FIN1' && inputPass === 'admin') 
-            found = { id: 'FIN1', name: 'Finance Hub (Adnan)', role: ROLES.FINANCE };
-        if (role === ROLES.FACULTY && inputID === 'VHR-F-001' && inputPass === '123') 
-            found = { id: 'VHR-F-001', name: 'Dr. Muhammad Nasir', role: ROLES.FACULTY };
-        if (role === ROLES.STUDENT) {
-            if (inputID === 'S001' && inputPass === '123') found = { id: 'S001', name: 'Amna Pervez', role: ROLES.STUDENT };
-            if (inputID === 'S003' && inputPass === '123') found = { id: 'S003', name: 'Ali Hassan', role: ROLES.STUDENT };
-        }
-    }
-    
-    if (!found) {
-        if (role === ROLES.ADMIN) {
 
-          if ((inputID === 'ADMIN' || inputID === 'ADM') && inputPass === 'admin') 
-            found = { name: 'Institutional Admin', id: 'ADM' };
-        } else if (role === ROLES.STUDENT) {
-          // Check registry (A01, B02, etc)
+    
+    // 2. Dynamic Registry Lookup
+    if (!found) {
+        if (role === ROLES.STUDENT) {
           found = students.find(s => 
             (s.id?.toUpperCase() === inputID || s.dbID === inputID) && 
             String(s.password) === inputPass
           );
+          if (found) found = { ...found, role: ROLES.STUDENT };
         } else if (role === ROLES.FACULTY) {
-          // Hardcode F1 as fail-safe
-          if (inputID === 'F1' && inputPass === '123') found = { id: 'F1', name: 'Dr. Muhammad Nasir (Fail-safe)' };
-          else found = faculty.find(f => 
+          found = faculty.find(f => 
             (f.id?.toUpperCase() === inputID || f.dbID === inputID) && 
             String(f.password) === inputPass && 
-            f.role !== 'Finance'
+            f.role !== 'Finance' && !f.id?.includes('FIN')
           );
+          if (found) found = { ...found, role: ROLES.FACULTY };
         } else if (role === ROLES.FINANCE) {
-          // Hardcode FIN1 as fail-safe
-          if (inputID === 'FIN1' && inputPass === 'admin') found = { id: 'FIN1', name: 'Finance Hub (Adnan)' };
-          else found = faculty.find(f => 
+          found = faculty.find(f => 
             (f.id?.toUpperCase() === inputID || f.dbID === inputID) && 
             String(f.password) === inputPass && 
             (f.role === 'Finance' || f.id?.includes('FIN'))
           );
+          if (found) found = { ...found, role: ROLES.FINANCE };
+        } else if (role === ROLES.ADMIN) {
+           if ((inputID === 'ADMIN' || inputID === 'ADM') && inputPass === 'admin') 
+             found = { name: 'Institutional Admin', id: 'ADM', role: ROLES.ADMIN };
         }
     }
 
+
     if (found) { 
         console.log(`[Auth] Success: Session started for ${found.name || found.id}`);
-        const sessionUser = { ...found, role };
+        // Prioritize the role defined in the demodata/bypass logic over the login screen selector
+        const finalRole = found.role || role; 
+        const sessionUser = { ...found, role: finalRole };
         if (!sessionUser.name && sessionUser.facultyName) sessionUser.name = sessionUser.facultyName;
         if (!sessionUser.name) sessionUser.name = sessionUser.id;
         
         setUser(sessionUser); 
         saveSession(sessionUser);
-        notify(`Authorized as ${role}`); 
+        notify(`Authorized as ${finalRole}`); 
         switchTab('dashboard'); 
         setAppView('portal');
     }
+
     else {
         console.error(`[Auth] Failed: No match for ${inputID} in ${role} registry.`);
         notify("Credentials Invalid. Try clicking 'Reset Institutional Cache' below.", "error");
@@ -444,56 +445,40 @@ function App() {
         return <StudentAcademicView user={user} enrolments={enrolments} attendance={attendance} assessments={assessments} marks={marks} courses={courses} />;
 
 
-      case 'enrolments':
+      case 'results':
         return (
           <div className="view-container fade-in">
             <div className="view-header-premium">
-              <h1>Active Enrolments</h1>
-              <p>Registry of confirmed course registrations.</p>
+              <h1>Official Performance Records</h1>
+              <p>Registry of confirmed academic results and GPA metrics.</p>
             </div>
             <div className="table-card-premium glass-card">
               <table className="premium-table">
-                <thead><tr><th>Reg ID</th><th>Student ID</th><th>Course</th><th>Status</th></tr></thead>
+                <thead><tr><th>Result ID</th><th>Student Record</th><th>Course</th><th>Grade</th><th>GPA</th></tr></thead>
                 <tbody>
-                  {enrolments.map(e => (
-                    <tr key={e.registrationID}>
-                      <td className="font-monospace">#{e.registrationID}</td>
-                      <td>{e.studentID}</td>
-                      <td>{e.courseID}</td>
-                      <td><span className="badge-premium badge-primary">{e.status}</span></td>
-                    </tr>
-                  ))}
+                  {(results || []).map(r => {
+                    const student = students.find(s => s.id === r.studentID || s.dbID === r.studentID);
+                    return (
+                      <tr key={r.resultID}>
+                        <td className="font-monospace">#{r.resultID.substring(0,6)}</td>
+                        <td>
+                          <div style={{display:'flex', flexDirection:'column'}}>
+                             <span style={{fontWeight:600}}>{student?.name || 'Academic Member'}</span>
+                             <span style={{fontSize:'11px', opacity:0.6}}>{student?.regNumber || r.studentID}</span>
+                          </div>
+                        </td>
+                        <td>{r.courseID}</td>
+                        <td><span className="badge-premium badge-primary">{r.grade}</span></td>
+                        <td><strong>{r.GPA}</strong></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
         );
 
-      case 'results':
-        return (
-          <div className="view-container fade-in">
-            <div className="view-header-premium">
-              <h1>Grading Results</h1>
-              <p>Official academic performance records.</p>
-            </div>
-            <div className="table-card-premium glass-card">
-              <table className="premium-table">
-                <thead><tr><th>Res ID</th><th>Student ID</th><th>Course</th><th>Grade</th><th>GPA</th></tr></thead>
-                <tbody>
-                  {results.map(r => (
-                    <tr key={r.resultID}>
-                      <td className="font-monospace">#{r.resultID}</td>
-                      <td>{r.studentID}</td>
-                      <td>{r.courseID}</td>
-                      <td><span className="program-tag">{r.grade}</span></td>
-                      <td><strong>{r.GPA}</strong></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
       
 
       case 'classes':
