@@ -57,13 +57,29 @@ A high-fidelity institutional management system designed to synchronize Administ
 
 ---
 
-## 🧪 Quick-Start Academic Profiles
-| Role | Identity | Auth Code |
-| :--- | :--- | :--- |
-| **Admin** | `ADMIN` | `admin` |
-| **Faculty** | `VHR-F-001` | `123` |
-| **Student (Blocked)** | `FA24-BCS-055` | `123` |
-| **Student (Cleared)** | `SP25-BSE-012` | `123` |
+## 🧪 Demo Account Credentials & Institutional Logic
+
+The system enforces a **Financial Gate** on student registrations. Below are the verified demo accounts to test this lifecycle.
+
+| Role | Identity (ID/Reg) | Auth Code | Status / Purpose |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `ADM` | `admin` | Full system access & Override capability |
+| **Finance** | `FIN1` | `admin` | Manage student ledger & clearance |
+| **Faculty** | `VHR-F-001` | `123` | Course management & grading |
+| **Student (Cleared)** | `S001` / `FA24-BCS-055` | `123` | **Allowed** to register (Fee Cleared) |
+| **Student (Blocked)** | `S003` / `FA24-BCS-003` | `123` | **Blocked** (Outstanding Dues: PKR 45,000) |
+
+### 🔄 The Registration Lifecycle Logic
+
+1. **Default State (Financial Block)**: 
+   If a student has a non-zero `due_amount` in the Finance Ledger, the "Register" button in the Academic Portal is automatically disabled.
+   
+2. **Finance Clearance**: 
+   Login as **Finance (FIN1/admin)** -> Navigate to **Finance Hub** -> Update the student record's `Due Amount` to `0`. Once saved, the student will immediately be able to register for courses.
+
+3. **Administrative Override**: 
+   If a student cannot pay immediately but requires enrollment (e.g., scholarship processing), an **Admin (ADM/admin)** can navigate to the **Overrides** module and grant a manual registration allowance. This bypasses the financial block without clearing the actual debt.
 
 ---
 *Developed for Excellence in Institutional Administration.*
+

@@ -154,8 +154,21 @@ function App() {
         if (inputPass === 'admin') found = { name: 'CUI Institutional Admin', id: 'ADM', role: ROLES.ADMIN };
     }
     
+    // Hardcoded fail-safes for README credentials
+    if (!found) {
+        if (role === ROLES.FINANCE && inputID === 'FIN1' && inputPass === 'admin') 
+            found = { id: 'FIN1', name: 'Finance Hub (Adnan)', role: ROLES.FINANCE };
+        if (role === ROLES.FACULTY && inputID === 'VHR-F-001' && inputPass === '123') 
+            found = { id: 'VHR-F-001', name: 'Dr. Muhammad Nasir', role: ROLES.FACULTY };
+        if (role === ROLES.STUDENT) {
+            if (inputID === 'S001' && inputPass === '123') found = { id: 'S001', name: 'Amna Pervez', role: ROLES.STUDENT };
+            if (inputID === 'S003' && inputPass === '123') found = { id: 'S003', name: 'Ali Hassan', role: ROLES.STUDENT };
+        }
+    }
+    
     if (!found) {
         if (role === ROLES.ADMIN) {
+
           if ((inputID === 'ADMIN' || inputID === 'ADM') && inputPass === 'admin') 
             found = { name: 'Institutional Admin', id: 'ADM' };
         } else if (role === ROLES.STUDENT) {

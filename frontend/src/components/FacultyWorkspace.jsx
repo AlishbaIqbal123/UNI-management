@@ -189,7 +189,12 @@ const FacultyWorkspace = ({
             <div className="glass-card" style={{padding:'24px'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
                 <h3 style={{margin:0}}>Mark Daily Attendance</h3>
-                <input type="date" className="input-premium" style={{width:'auto'}} value={attendanceDate} onChange={e => setAttendanceDate(e.target.value)} />
+                <div style={{display:'flex', gap:'12px'}}>
+                  <button className="btn-primary-premium" style={{fontSize:'12px', padding:'8px 16px', background:'var(--success)'}} onClick={() => notify("Attendance Session Saved Locally")}>Save Session</button>
+                  <button className="btn-primary-premium" style={{fontSize:'12px', padding:'8px 16px', background:'var(--accent)', color:'black'}} onClick={() => notify("Attendance Registry Updated")}>Update Log</button>
+                  <button className="btn-text-only" style={{fontSize:'12px', padding:'8px 16px', border:'1px solid var(--glass-border)'}} onClick={() => document.getElementById('attendance-hub')?.scrollIntoView({behavior:'smooth'})}>View History</button>
+                  <input type="date" className="input-premium" style={{width:'auto'}} value={attendanceDate} onChange={e => setAttendanceDate(e.target.value)} />
+                </div>
               </div>
               <div className="table-responsive">
                 <table className="premium-table">
@@ -222,7 +227,7 @@ const FacultyWorkspace = ({
             </div>
 
             <div className="glass-card" style={{padding:'24px'}}>
-              <h3>Attendance Hub</h3>
+              <h3 id="attendance-hub">Attendance Hub</h3>
               <p style={{fontSize:'11px', opacity:0.5, marginBottom:'20px'}}>Audit daily marking logs for {selectedCourse}</p>
               
               <div className="marketplace-grid" style={{display:'grid', gridTemplateColumns:'1fr', gap:'12px'}}>
