@@ -659,6 +659,7 @@ function App() {
 
       {/* Dynamic Modal Overlay */}
       {isModalOpen && (
+
         <div className="modal-overlay-premium" onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}>
            <div className="modal-card-premium glass-card fade-in">
             <h2>{modalCtx.type === 'admit_card_generated' ? 'Candidate Admit Card' : (modalCtx.data ? 'Modify' : 'Execute')} {modalCtx.type !== 'admit_card_generated' && modalCtx.type.replace('_',' ')}</h2>
@@ -1111,7 +1112,10 @@ function App() {
                          <input className="input-premium" placeholder="Full Name / Title" name="name" onChange={e => setFormData({...formData, name: e.target.value})} />
                          <input className="input-premium" placeholder="Metadata (Prop/Dept/Batch)" name="meta" onChange={e => setFormData({...formData, program: e.target.value})} />
                         </>
-                       )}
+                       )) } }
+
+
+
                     </div>
                   
                   <div className="modal-footer-premium" style={{display:'flex', gap:'12px', borderTop:'1px solid var(--glass-border)', paddingTop:'16px'}}>
@@ -1132,6 +1136,9 @@ function App() {
                  </div>
              </div>
        )}
+
+
+
 
       {deleteConfirm.open && (
         <div className="modal-overlay-premium"><div className="modal-card-premium glass-card danger-zone">
