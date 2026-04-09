@@ -1,26 +1,45 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  /* COMSATS Official Branding Palette */
-  --primary: #573273;          /* Eminence Purple */
+  /* Institutional Branding */
+  --primary: #573273;
   --primary-light: #7c4dff;
-  --accent: #ffb74d;           /* Institutional Gold */
-  --success: #10b981; /* Emerald Neon */
-  --surface: #1e1e1e;          /* Base background */
-  --surface-container: #313131; /* Mine Shaft Grey */
-  --surface-container-high: #3d3d3d;
+  --accent: #ffb74d;
+  --success: #10b981;
   
-  --text-main: #ffffff;
-  --text-dim: #b0b0b0;
-  --glass-bg: rgba(49, 49, 49, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-  
+  /* Shared Foundation */
   --font-main: 'Montserrat', sans-serif;
   --radius-xl: 16px;
   --radius-lg: 12px;
   --radius-md: 14px;
   --gutter: 32px;
+
+  /* Theme-Dependent Variables (Default Dark) */
+  --surface: #1e1e1e;
+  --surface-container: #313131;
+  --surface-container-high: #3d3d3d;
+  --text-main: #ffffff;
+  --text-dim: #b0b0b0;
+  --glass-bg: rgba(49, 49, 49, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --sidebar-bg: #313131;
+  --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  --orb-opacity: 0.5;
+}
+
+[data-theme='light'] {
+  --surface: #f8fafc;
+  --surface-container: #ffffff;
+  --surface-container-high: #f1f5f9;
+  --text-main: #0f172a;
+  --text-dim: #64748b;
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  --sidebar-bg: #ffffff;
+  --card-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+  --orb-opacity: 0.2;
 }
 
 * {
@@ -49,7 +68,7 @@ body::before, body::after {
   border-radius: 50%;
   filter: blur(120px);
   z-index: -1;
-  opacity: 0.5;
+  opacity: var(--orb-opacity);
   animation: floatOrb 20s infinite alternate ease-in-out;
 }
 
@@ -88,11 +107,11 @@ h1, h2, h3, .logo-text-top {
 /* Sidebar - Premium */
 .premium-sidebar {
   width: 280px;
-  background: var(--surface-container);
+  background: var(--sidebar-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-right: 1px solid var(--glass-border);
-  color: white;
+  color: var(--text-main);
   padding: 32px 24px;
   display: flex;
   flex-direction: column;
@@ -113,7 +132,7 @@ h1, h2, h3, .logo-text-top {
   font-weight: 800;
   font-size: 20px;
   line-height: 1;
-  color: white;
+  color: var(--text-main);
 }
 
 .logo-text-bottom {
@@ -195,7 +214,7 @@ h1, h2, h3, .logo-text-top {
 .welcome-section h1 {
   font-size: 36px;
   font-weight: 800;
-  color: white;
+  color: var(--text-main);
   margin-bottom: 8px;
 }
 
@@ -275,7 +294,7 @@ h1, h2, h3, .logo-text-top {
   display: block;
   font-size: 22px;
   font-weight: 500;
-  color: white;
+  color: var(--text-main);
 }
 
 
@@ -311,7 +330,7 @@ h1, h2, h3, .logo-text-top {
 .stat-value {
   font-size: 32px;
   font-weight: 800;
-  color: white; /* Changed from var(--primary) for better contrast */
+  color: var(--text-main); /* Changed from var(--primary) for better contrast */
 }
 
 
@@ -409,7 +428,7 @@ h1, h2, h3, .logo-text-top {
 .action-btn-premium .action-label {
   font-size: 11px;
   font-weight: 700;
-  color: white;
+  color: var(--text-main);
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -631,11 +650,11 @@ h1, h2, h3, .logo-text-top {
 }
 
 .input-premium {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--surface-container-high);
+  border: 1px solid var(--glass-border);
   padding: 14px 16px;
   border-radius: 12px;
-  color: white;
+  color: var(--text-main);
   font-size: 16px;
   transition: all 0.2s ease;
 }
@@ -810,7 +829,7 @@ textarea.input-premium {
 
 /* Sidebar Specifics */
 .logout:hover {
-  background: #fff1f2 !important;
+  background: rgba(239, 68, 68, 0.1) !important;
   color: #e11d48 !important;
 }
 
@@ -1194,7 +1213,7 @@ textarea.input-premium {
 select.input-premium,
 select {
   background-color: var(--surface-container) !important;
-  color: white !important;
+  color: var(--text-main) !important;
   appearance: auto;
 }
 select option {
@@ -1259,9 +1278,9 @@ select:focus {
 .input-premium {
   width: 100%;
   min-height: 44px;
-  color: white !important;
-  background: rgba(255,255,255,0.07) !important;
-  border: 1px solid rgba(255,255,255,0.15) !important;
+  color: var(--text-main) !important;
+  background: var(--surface-container-high) !important;
+  border: 1px solid var(--glass-border) !important;
   border-radius: 10px;
   padding: 10px 14px;
   font-size: 14px;
@@ -1271,7 +1290,7 @@ select:focus {
   /* Prevent text overflow clipping */
   text-overflow: ellipsis;
 }
-.input-premium::placeholder { color: rgba(255,255,255,0.35); }
+.input-premium::placeholder { color: var(--text-dim); opacity: 0.5; }
 .input-premium:focus {
   border-color: var(--accent) !important;
   outline: none;
@@ -1510,7 +1529,7 @@ select:focus {
   border: 1px solid var(--glass-border);
   padding: 10px;
   border-radius: 8px;
-  color: white;
+  color: var(--text-main);
   cursor: pointer;
   z-index: 1001;
   position: fixed;

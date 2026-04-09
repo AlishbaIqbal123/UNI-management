@@ -17,7 +17,7 @@ const icons = {
 const ROLES = { ADMIN: 'Admin', STUDENT: 'Student', FACULTY: 'Faculty', FINANCE: 'Finance' };
 
 
-const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick, isOpen }) => {
+const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick, isOpen, theme, toggleTheme }) => {
   const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: icons.dashboard },
     { id: 'students', label: 'Students', icon: icons.student, access: [ROLES.ADMIN] },
@@ -30,6 +30,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick, isOpen 
     { id: 'overrides', label: 'Admin Overrides', icon: icons.enrol, access: [ROLES.ADMIN] },
     { id: 'blocked-audit', label: 'Blocked Students', icon: icons.report, access: [ROLES.ADMIN] },
     { id: 'finance', label: 'Financial Hub', icon: icons.financial, access: [ROLES.ADMIN, ROLES.FINANCE] },
+    { id: 'exams', label: 'Exam Schedule', icon: icons.result, access: [ROLES.ADMIN, ROLES.STUDENT, ROLES.FACULTY] },
 
     { id: 'notices', label: 'Announcements', icon: icons.report, access: [ROLES.ADMIN, ROLES.STUDENT, ROLES.FACULTY, ROLES.FINANCE] },
     { id: 'calendar', label: 'Academic Calendar', icon: icons.dashboard, access: [ROLES.ADMIN, ROLES.STUDENT, ROLES.FACULTY, ROLES.FINANCE] },
@@ -70,6 +71,16 @@ const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick, isOpen 
         ))}
       </nav>
       <div className="sidebar-footer">
+        <div className="nav-item-premium" onClick={toggleTheme} style={{marginBottom:'8px'}}>
+          <div className="nav-icon-wrapper">
+            {theme === 'dark' ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            )}
+          </div>
+          <span className="nav-label">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+        </div>
         <div className="nav-item-premium logout" onClick={onLogout}>
           <div className="nav-icon-wrapper">{icons.logout}</div>
           <span className="nav-label">Sign Out</span>

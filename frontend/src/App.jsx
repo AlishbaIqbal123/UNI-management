@@ -18,6 +18,7 @@ import NoticeManagement from './components/NoticeManagement';
 import StudentAcademicView from './components/StudentAcademicView';
 import AdminOverrideManagement from './components/AdminOverrideManagement';
 import EnrollmentManagement from './components/EnrollmentManagement';
+import ExamManagement from './components/ExamManagement';
 import { generateInstitutionalReport } from './lib/exportUtils';
 
 
@@ -34,6 +35,14 @@ const saveTab = (tab) => localStorage.setItem('ums_activeTab', tab);
 function App() {
   const [user, setUser] = useState(loadSession);
   const [activeTab, setActiveTab] = useState(loadTab);
+  const [theme, setTheme] = useState(localStorage.getItem('ums_theme') || 'dark');
+
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('ums_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   
   // App routing state (landing -> login -> portal)
   const [appView, setAppView] = useState(user ? 'portal' : 'landing');
@@ -66,6 +75,7 @@ function App() {
     courses, setCourses, enrolments, setEnrolments, results, setResults, 
     finance, setFinance, attendance, setAttendance, notices, setNotices,
     adminOverrides, setAdminOverrides, assessments, setAssessments, marks, setMarks,
+    exams, setExams,
     loading
   } = useUMSData();
 
@@ -142,12 +152,22 @@ function App() {
     }
 
     const { type, data } = modalCtx;
-    const setters = { student: setStudents, faculty: setFaculty, finance: setFinance, courses: setCourses, department: setDepartments };
+    const setters = { student: setStudents, faculty: setFaculty, finance: setFinance, courses: setCourses, department: setDepartments, exam: setExams };
     const setter = setters[type];
 
     if (setter) {
-        if (data) setter(prev => prev.map(x => (x.id || x.recordID || x.courseID || x.departmentID) === (data.id || data.recordID || data.courseID || data.departmentID) ? { ...x, ...formData } : x));
-        else setter(prev => [...prev, formData]);
+        if (data) {
+            setter(prev => prev.map(x => {
+                const idKey = x.id ? 'id' : x.recordID ? 'recordID' : x.courseID ? 'courseID' : x.departmentID ? 'departmentID' : 'id';
+                return (String(x[idKey]) === String(data[idKey])) ? { ...x, ...formData } : x;
+            }));
+        } else {
+            const newRecord = { ...formData };
+            if (!newRecord.id && !newRecord.recordID && !newRecord.courseID && !newRecord.departmentID) {
+                newRecord.id = Date.now(); // Fallback ID for stability
+            }
+            setter(prev => [...prev, newRecord]);
+        }
         notify("Operation completed successfully.");
     }
     setIsModalOpen(false);
@@ -181,7 +201,8 @@ function App() {
     } else if (inputID === 'VHR-F-001' && inputPass === '123') {
         found = { id: 'VHR-F-001', name: 'Dr. Muhammad Nasir', role: ROLES.FACULTY };
     } else if (inputID === 'S001' && inputPass === '123') {
-        found = { id: 'S001', name: 'Amna Pervez', role: ROLES.STUDENT, regNumber: 'FA24-BCS-055' };
+        const registryMatch = students.find(s => s.id === 'S001' || s.name === 'Amna Pervez');
+        found = registryMatch ? { ...registryMatch, role: ROLES.STUDENT } : { id: 'S001', name: 'Amna Pervez', role: ROLES.STUDENT, regNumber: 'FA24-BCS-055' };
     } else if (inputID === 'S003' && inputPass === '123') {
         found = { id: 'S003', name: 'Ali Hassan', role: ROLES.STUDENT, regNumber: 'FA24-BCS-003' };
     }
@@ -299,7 +320,11 @@ function App() {
       case 'dashboard': {
         // Build role-specific stats with extreme safety
         const myEnrolments = (enrolments || []).filter(e => e.studentID === user.id);
-        const myFinance = (finance || []).filter(f => f.studentID === user.id);
+        const myFinance = (finance || []).filter(f => 
+          f.studentID === user.id || 
+          f.studentID === user.dbID || 
+          (user.regNumber && f.studentID === user.regNumber)
+        );
         const myResults = (results || []).filter(r => r.studentID === user.id);
         const myGPA = myResults.length > 0
           ? (myResults.reduce((a, r) => a + (parseFloat(r.GPA) || 0), 0) / myResults.length).toFixed(2)
@@ -354,6 +379,7 @@ function App() {
             if (type === 'VIEW_CLASSES')     setActiveTab('classes');
             if (type === 'VIEW_PROFILE')     setActiveTab('profile');
             if (type === 'VIEW_NOTICES')     setActiveTab('notices');
+            if (type === 'VIEW_EXAMS')       setActiveTab('exams');
             if (type === 'VIEW_NOTICE') { setModalCtx({ type: 'notice_detail', data }); setIsModalOpen(true); }
             if (type === 'VIEW_REPORTS') {
               if (user.role === ROLES.ADMIN) {
@@ -624,6 +650,10 @@ function App() {
           </div>
         );
 
+      case 'exams':
+        return <ExamManagement exams={exams} setExams={setExams} courses={courses} faculty={faculty} user={user} openForm={openForm} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
+
+
       default: return <div className="placeholder-view glass-card p-40"><h2>{activeTab} Module</h2><p>CUI Services initializing...</p></div>;
     }
   };
@@ -799,6 +829,41 @@ function App() {
             </div>
           </div>
         );
+      case 'exam':
+        return (
+          <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+            <div>
+              <label style={{fontSize:'12px', opacity:0.8}}>Target Course</label>
+              <select className="input-premium" value={formData.courseID || ''} onChange={e => setFormData({...formData, courseID: e.target.value})}>
+                <option value="">Select Course</option>
+                {courses.map(c => <option key={c.courseID} value={c.courseID}>{c.courseName} ({c.courseID})</option>)}
+              </select>
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
+               <div>
+                  <label style={{fontSize:'12px', opacity:0.8}}>Exam Date</label>
+                  <input type="date" className="input-premium" style={{background:'var(--surface-container-high)', color:'white'}} value={formData.date || ''} onChange={e => setFormData({...formData, date: e.target.value})} />
+               </div>
+               <div>
+                  <label style={{fontSize:'12px', opacity:0.8}}>Commencement Time</label>
+                  <input type="time" className="input-premium" style={{background:'var(--surface-container-high)', color:'white'}} value={formData.time || ''} onChange={e => setFormData({...formData, time: e.target.value})} />
+               </div>
+            </div>
+            <div>
+              <label style={{fontSize:'12px', opacity:0.8}}>Examination Venue</label>
+              <input className="input-premium" placeholder="e.g. Hall A, Lab 3" value={formData.venue || ''} onChange={e => setFormData({...formData, venue: e.target.value})} />
+            </div>
+            <div>
+              <label style={{fontSize:'12px', opacity:0.8}}>Exam Category</label>
+              <select className="input-premium" value={formData.type || ''} onChange={e => setFormData({...formData, type: e.target.value})}>
+                <option value="Midterm">Midterm</option>
+                <option value="Terminal">Terminal (Final)</option>
+                <option value="Sessional">Sessional</option>
+              </select>
+            </div>
+          </div>
+        );
+
       case 'calendar_update':
         return (<textarea className="input-premium" style={{height:'150px'}} placeholder="Event | Date Range..." onChange={e => setFormData({raw: e.target.value})} />);
       default:
@@ -833,6 +898,8 @@ function App() {
         onLogout={handleLogout} 
         onHomeClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} 
         isOpen={isSidebarOpen}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
       <main className="main-content-premium" style={{display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden'}}>
         <div className="scroll-surface">

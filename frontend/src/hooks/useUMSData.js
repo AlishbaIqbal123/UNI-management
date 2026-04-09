@@ -77,8 +77,9 @@ export function useUMSData() {
   }, [students]);
   const [adminOverrides, setAdminOverrides] = useState(() => load('ums_overrides_v4', []));
   const [loading, setLoading] = useState(true);
-  const [exams] = useState(() => load('ums_exams_v4', [
-    { id: 1, course: 'CSC101', date: '2026-05-15', venue: 'Hall A' }
+  const [exams, setExams] = useState(() => load('ums_exams_v4', [
+    { id: 1, courseID: 'CSC101', date: '2026-05-15', time: '09:00 AM', venue: 'Hall A', type: 'Midterm', invigilator: 'Dr. Muhammad Nasir' },
+    { id: 2, courseID: 'MTH101', date: '2026-05-16', time: '12:00 PM', venue: 'Hall B', type: 'Midterm', invigilator: 'Dr. Saima Jamil' }
   ]));
 
   const [assessments, setAssessments] = useState(() => load('ums_assessments_v4', []));
@@ -216,7 +217,7 @@ export function useUMSData() {
     finance, setFinance, 
     attendance, setAttendance, 
     notices, setNotices, 
-    exams,
+    exams, setExams,
     adminOverrides, setAdminOverrides,
     assessments, setAssessments,
     marks, setMarks,

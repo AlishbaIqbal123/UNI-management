@@ -9,9 +9,9 @@ const icons = {
 const FacultyManagement = ({ faculty, openForm, handleDelete, setFaculty }) => {
   const [searchTerm, setSearchTerm] = React.useState('');
 
-  const filteredFaculty = faculty.filter(f => 
-    f.facultyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.id.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredFaculty = (faculty || []).filter(f => 
+    (f.facultyName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (f.id || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -61,8 +61,8 @@ const FacultyManagement = ({ faculty, openForm, handleDelete, setFaculty }) => {
                   <td className="font-monospace" style={{opacity:0.6}}>#{f.id}</td>
                   <td>
                     <div className="user-info-cell">
-                      <div className="user-avatar-small" style={{background:'var(--accent)', color:'var(--surface)'}}>{f.facultyName.charAt(0)}</div>
-                      <span className="user-name-cell">{f.facultyName}</span>
+                      <div className="user-avatar-small" style={{background:'var(--accent)', color:'var(--surface)'}}>{(f.facultyName || 'F').charAt(0)}</div>
+                      <span className="user-name-cell">{f.facultyName || 'Academic Staff'}</span>
                     </div>
                   </td>
                   <td>

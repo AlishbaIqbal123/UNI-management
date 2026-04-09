@@ -239,12 +239,12 @@ const FacultyWorkspace = ({
                     <tr key={s.id}>
                       <td>
                         <div className="user-info-cell">
-                          <span className="user-name-cell">{s.name}</span>
-                          <span className="font-monospace" style={{fontSize:'10px', opacity:0.6}}>{s.id}</span>
+                          <span className="user-name-cell" style={{color:'var(--text-main)'}}>{s.name}</span>
+                          <span className="font-monospace" style={{fontSize:'10px', color:'var(--text-dim)'}}>{s.id}</span>
                         </div>
                       </td>
                       <td>{s.batch || 'Fall 2024'}</td>
-                      <td><span className="badge-premium" style={{background:'rgba(255,255,255,0.05)'}}>{s.section || 'General'}</span></td>
+                      <td><span className="badge-premium" style={{background:'var(--surface-container-high)', color:'var(--text-main)'}}>{s.section || 'General'}</span></td>
                       <td><span className="badge-premium badge-gold">{s.program || 'BSCS'}</span></td>
                       <td className="text-right">
                         <span className="badge-premium badge-primary">Active</span>
@@ -284,8 +284,8 @@ const FacultyWorkspace = ({
                     const status = attendance.find(a => (a.studentID === s.id || a.studentID === s.dbID) && a.courseID === selectedCourse && a.date === attendanceDate)?.status;
                     return (
                       <tr key={s.id}>
-                        <td className="user-name-cell">{s.name}</td>
-                        <td className="font-monospace" style={{fontSize:'11px', opacity:0.6}}>{s.id}</td>
+                        <td className="user-name-cell" style={{color:'var(--text-main)'}}>{s.name}</td>
+                        <td className="font-monospace" style={{fontSize:'11px', color:'var(--text-dim)'}}>{s.id}</td>
                         <td className="text-right">
                           <div style={{display:'flex', gap:'8px', justifyContent:'flex-end'}}>
                             <button className={status === 'Present' ? 'btn-primary-premium' : 'btn-text-only'} style={{padding:'6px 14px', fontSize:'10px', background:status === 'Present' ? 'var(--success)' : '', borderRadius:'6px'}} onClick={() => handleAttendance(s.id, 'Present')}>P</button>
@@ -465,13 +465,13 @@ const FacultyWorkspace = ({
                {courseAssessments.map(asst => (
                  <div key={asst.id} className="glass-card marketplace-card-premium" style={{cursor:'pointer'}} onClick={() => { setSelectedAssessment(asst.id); setViewMode('marking'); }}>
                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'16px'}}>
-                      <span className="badge-premium" style={{background:'rgba(255,255,255,0.05)', fontSize:'10px'}}>{asst.type}</span>
+                      <span className="badge-premium" style={{background:'var(--surface-container-high)', color:'var(--text-main)', fontSize:'10px'}}>{asst.type}</span>
                       <span className="badge-premium badge-gold" style={{fontSize:'10px'}}>{asst.totalMarks} Points</span>
                     </div>
                     <h4 style={{margin:'0 0 8px 0', fontSize:'18px'}}>{asst.title}</h4>
                     <p style={{fontSize:'12px', opacity:0.6, margin:0}}>Click to manage entries and score analysis.</p>
                     <div style={{marginTop:'20px', display:'flex', gap:'8px'}}>
-                       <button className="btn-text-only" style={{fontSize:'10px', padding:'6px 12px', border:'1px solid rgba(255,255,255,0.1)'}}>View Metrics</button>
+                       <button className="btn-text-only" style={{fontSize:'10px', padding:'6px 12px', border:'1px solid var(--glass-border)'}}>View Metrics</button>
                        <button className="btn-primary-premium" style={{fontSize:'10px', padding:'6px 12px', flex:1}}>Mark Now</button>
                     </div>
                  </div>

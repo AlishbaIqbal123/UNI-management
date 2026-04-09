@@ -100,63 +100,132 @@ const FinanceManagement = ({ finance, user, students, setFinance, openForm }) =>
         </div>
       )}
 
-      <div className="table-card-premium glass-card">
-        <div className="table-responsive">
-          <table className="premium-table">
-            <thead>
-              <tr>
-                <th>Student Tracking</th>
-                <th>Paid Amount</th>
-                <th>Outstanding</th>
-                <th>Institutional Status</th>
-                <th className="text-right">Reference</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.filter(s => {
-                  const searchMatches = (s.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       (s.regNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       (s.id || '').toLowerCase().includes(searchTerm.toLowerCase());
-                  const batchMatches = batchFilter === 'All' || s.batch === batchFilter;
-                  
-                  const f = finance.find(fin => fin.studentID === s.id || fin.studentID === s.dbID);
-                  const statusMatches = statusFilter === 'All' || 
-                                       (statusFilter === 'Cleared' && (f?.dueAmount || 0) === 0 && f) || 
-                                       (statusFilter === 'Pending' && ((f?.dueAmount || 0) > 0 || !f));
-                  
-                  return searchMatches && batchMatches && statusMatches;
-              }).map(s => {
-                  const f = finance.find(fin => fin.studentID === s.id || fin.studentID === s.dbID) || 
-                            { amountPaid: 0, dueAmount: 45000, studentID: s.id, isDefault: true };
-                  
-                  return (
-                    <tr key={s.dbID || s.id}>
-                      <td>
-                        <div className="user-info-cell">
-                          <span className="user-name-cell" style={{fontWeight:600, color:'white', fontSize:'15px'}}>{s.name}</span>
-                          <span className="font-monospace" style={{fontSize:'12px', fontWeight:600, color:'var(--accent)', background:'rgba(255,255,255,0.05)', padding:'2px 8px', borderRadius:'4px'}}>
-                            {s.regNumber || `FA24-BCS-${s.id.replace('S', '')}`}
-                          </span>
-                        </div>
-                      </td>
-                      <td style={{color:'var(--success)', fontWeight:700}}>PKR {f.amountPaid.toLocaleString()}</td>
-                      <td style={{color:f.dueAmount > 0 ? '#ef4444' : 'var(--text-dim)'}}>PKR {f.dueAmount.toLocaleString()}</td>
-                      <td>
-                        <span className={`badge-premium ${f.dueAmount === 0 ? 'badge-primary' : ''}`} style={{background: f.dueAmount === 0 ? '' : 'rgba(239,68,68,0.2)', color: f.dueAmount === 0 ? '' : '#ef4444'}}>
-                            {f.dueAmount === 0 ? 'CLEARED' : 'PENDING'}
-                        </span>
-                      </td>
-                      <td className="text-right">
-                          <button className="btn-text-only" style={{fontSize:'11px'}} onClick={() => openForm('payment', f)}>Edit</button>
-                      </td>
-                    </tr>
-                  );
-              })}
-            </tbody>
+      {!isFinanceOfficer && (
+        <div className="finance-student-view fade-in">
+           {students.filter(s => {
+               const isOwnRecord = s.id === user.id || s.dbID === user.id || (s.regNumber && s.regNumber === user.regNumber);
+               return isOwnRecord;
+           }).map(s => {
+               const f = finance.find(fin => fin.studentID === s.id || fin.studentID === s.dbID || fin.studentID === s.regNumber) || 
+                         { amountPaid: 0, dueAmount: 45000, studentID: s.id, isDefault: true };
+               
+               return (
+                 <div key={s.id} className="glass-card p-40" style={{maxWidth:'800px', margin:'0 auto'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'32px', borderBottom:'1px solid var(--glass-border)', paddingBottom:'24px'}}>
+                       <div>
+                          <h2 style={{color:'var(--accent)', fontSize:'24px', margin:0}}>OFFICIAL FEE STATEMENT</h2>
+                          <p style={{opacity:0.6, fontSize:'14px', marginTop:'4px'}}>Fiscal Year 2024-2025 | Fall Semester</p>
+                       </div>
+                       <div className={`badge-premium ${f.dueAmount === 0 ? 'badge-primary' : ''}`} style={{background: f.dueAmount === 0 ? '' : 'rgba(239,68,68,0.2)', color: f.dueAmount === 0 ? '' : '#ef4444', padding:'8px 20px', fontSize:'14px'}}>
+                          {f.dueAmount === 0 ? 'CLEARED' : 'PENDING'}
+                       </div>
+                    </div>
 
-          </table>
+                    <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'40px', marginBottom:'40px'}}>
+                       <div className="info-block">
+                          <label style={{fontSize:'12px', opacity:0.5, textTransform:'uppercase', letterSpacing:'1px'}}>Student Identification</label>
+                          <div style={{fontSize:'18px', fontWeight:600, color:'var(--text-main)', marginTop:'8px'}}>{s.name}</div>
+                          <div style={{fontSize:'14px', opacity:0.8, marginTop:'4px'}}>{s.regNumber || s.id}</div>
+                          <div style={{fontSize:'12px', opacity:0.6, marginTop:'2px'}}>{s.program} | {s.batch}</div>
+                       </div>
+                       <div style={{textAlign:'right'}}>
+                          <label style={{fontSize:'12px', opacity:0.5, textTransform:'uppercase', letterSpacing:'1px'}}>Account Summary</label>
+                          <div style={{marginTop:'12px'}}>
+                             <div style={{display:'flex', justifyContent:'flex-end', gap:'16px', marginBottom:'8px'}}>
+                                <span style={{opacity:0.6}}>Amount Paid:</span>
+                                <span style={{color:'var(--success)', fontWeight:700}}>PKR {f.amountPaid.toLocaleString()}</span>
+                             </div>
+                             <div style={{display:'flex', justifyContent:'flex-end', gap:'16px', fontSize:'20px'}}>
+                                <span style={{opacity:0.8}}>Total Due:</span>
+                                <span style={{color: f.dueAmount > 0 ? '#ef4444' : 'var(--text-dim)', fontWeight:800}}>PKR {f.dueAmount.toLocaleString()}</span>
+                             </div>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div style={{background:'rgba(255,255,255,0.03)', borderRadius:'12px', padding:'24px', border:'1px dashed var(--glass-border)'}}>
+                       <h4 style={{fontSize:'14px', marginBottom:'12px'}}>Important Instructions:</h4>
+                       <ul style={{fontSize:'13px', opacity:0.7, paddingLeft:'20px', display:'flex', flexDirection:'column', gap:'8px'}}>
+                          <li>Fee must be deposited in any branch of Habib Bank Limited (HBL) using the University Challan.</li>
+                          <li>Course registration is only permitted after 100% financial clearance.</li>
+                          <li>In case of discrepancy, please visit the Finance Office (Adnan Ahmed) with proof of payment.</li>
+                       </ul>
+                    </div>
+
+                    <div style={{marginTop:'32px', textAlign:'center'}}>
+                       <button className="btn-primary-premium" onClick={() => window.print()}>🖨️ Download Fee Challan (PDF)</button>
+                    </div>
+                 </div>
+               );
+           })}
+           {students.filter(s => s.id === user.id || s.dbID === user.id || (s.regNumber && s.regNumber === user.regNumber)).length === 0 && (
+              <div className="glass-card p-40 text-center">
+                 <h2 style={{opacity:0.5}}>No Financial Profile Found</h2>
+                 <p style={{opacity:0.4}}>Please contact the registrar's office to initialize your financial registry.</p>
+              </div>
+           )}
         </div>
-      </div>
+      )}
+
+      {isFinanceOfficer && (
+        <div className="table-card-premium glass-card">
+          <div className="table-responsive">
+            <table className="premium-table">
+              <thead>
+                <tr>
+                  <th>Student Tracking</th>
+                  <th>Paid Amount</th>
+                  <th>Outstanding</th>
+                  <th>Institutional Status</th>
+                  <th className="text-right">Reference</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.filter(s => {
+                    const searchMatches = (s.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                         (s.regNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                         (s.id || '').toLowerCase().includes(searchTerm.toLowerCase());
+                    const batchMatches = batchFilter === 'All' || s.batch === batchFilter;
+                    
+                    const f = finance.find(fin => fin.studentID === s.id || fin.studentID === s.dbID);
+                    const statusMatches = statusFilter === 'All' || 
+                                         (statusFilter === 'Cleared' && (f?.dueAmount || 0) === 0 && f) || 
+                                         (statusFilter === 'Pending' && ((f?.dueAmount || 0) > 0 || !f));
+                    
+                    return searchMatches && batchMatches && statusMatches;
+                }).map(s => {
+                    const f = finance.find(fin => fin.studentID === s.id || fin.studentID === s.dbID) || 
+                              { amountPaid: 0, dueAmount: 45000, studentID: s.id, isDefault: true };
+                    
+                    return (
+                      <tr key={s.dbID || s.id}>
+                        <td>
+                          <div className="user-info-cell">
+                            <span className="user-name-cell" style={{fontWeight:600, color:'var(--text-main)', fontSize:'15px'}}>{s.name}</span>
+                            <span className="font-monospace" style={{fontSize:'12px', fontWeight:600, color:'var(--accent)', background:'rgba(255,255,255,0.05)', padding:'2px 8px', borderRadius:'4px'}}>
+                              {s.regNumber || `FA24-BCS-${s.id.replace('S', '')}`}
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{color:'var(--success)', fontWeight:700}}>PKR {f.amountPaid.toLocaleString()}</td>
+                        <td style={{color:f.dueAmount > 0 ? '#ef4444' : 'var(--text-dim)'}}>PKR {f.dueAmount.toLocaleString()}</td>
+                        <td>
+                          <span className={`badge-premium ${f.dueAmount === 0 ? 'badge-primary' : ''}`} style={{background: f.dueAmount === 0 ? '' : 'rgba(239,68,68,0.2)', color: f.dueAmount === 0 ? '' : '#ef4444'}}>
+                              {f.dueAmount === 0 ? 'CLEARED' : 'PENDING'}
+                          </span>
+                        </td>
+                        <td className="text-right">
+                            <button className="btn-text-only" style={{fontSize:'11px'}} onClick={() => openForm('payment', f)}>Edit</button>
+                        </td>
+                      </tr>
+                    );
+                })}
+              </tbody>
+
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

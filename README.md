@@ -5,6 +5,28 @@ A high-fidelity institutional management system designed to synchronize Administ
 
 ---
 
+## 🏗️ Architectural Overview
+
+The **University Management System** is built on a high-fidelity hybrid architecture that separates institutional logic, pedagogical presentation, and persistent data storage.
+
+### 📁 Institutional Repository Structure
+
+| Module | Location | Functional Role |
+| :--- | :--- | :--- |
+| **Frontend (Portal Core)** | `frontend/` | The React-based user interface. Handles route visualization, glassmorphic styling, and user interactions. |
+| **Backend Models (Local)** | `src/org/university/management/model/` | Defines the institutional entities: `Student`, `Faculty`, `Course`, `FinancialRecord`, etc. |
+| **Business Services** | `src/org/university/management/service/` | Houses the core institutional logic and operational workflows. |
+| **Data Synchronization** | `frontend/src/hooks/useUMSData.js` | Orchestrates real-time communication between the UI and the remote Supabase database. |
+| **Database Schema** | `supabase/` | Migrations and schema definitions for the remote PostgreSQL environment. |
+
+### 🛠️ Core Component Breakdown
+
+*   **Models (`/src/.../model/`)**: These are the "Blueprints" of the university. They define precisely what data a `Student` or `Result` contains.
+*   **Modules (`frontend/src/components/`)**: Discrete units like `FinanceManagement` and `CourseManagement` that encapsulate specific administrative portals.
+*   **Persistence (`Supabase`)**: Every action (grading, marking attendance, fee payment) is synced in real-time to a secure PostgreSQL ledger.
+
+---
+
 ## 📋 Comprehensive Requirements Registry
 
 ### ✅ Functional Requirements (FR)

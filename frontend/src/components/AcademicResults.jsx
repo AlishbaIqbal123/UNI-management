@@ -40,8 +40,8 @@ const AcademicResults = ({ results, user, courses }) => {
           </div>
           <div className="glass-card telemetry-card text-center" style={{padding:'24px'}}>
               <span style={{fontSize:'12px', opacity:0.6, textTransform:'uppercase'}}>Credits Completed</span>
-              <h2 style={{fontSize:'42px', color:'white', margin:'8px 0'}}>{myResults.length * 3}</h2>
-              <span className="badge-premium" style={{background:'rgba(255,255,255,0.05)'}}>Total Required: 136</span>
+              <h2 style={{fontSize:'42px', color:'var(--text-main)', margin:'8px 0'}}>{myResults.length * 3}</h2>
+              <span className="badge-premium" style={{background:'var(--surface-container-high)', color:'var(--text-main)'}}>Total Required: 136</span>
           </div>
       </div>
 

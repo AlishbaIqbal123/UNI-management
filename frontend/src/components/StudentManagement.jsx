@@ -31,7 +31,7 @@ const StudentManagement = ({ students, finance, openForm, handleDelete, setStude
           <p>Global oversight of official institutional records and academic standing.</p>
         </div>
         <div style={{display:'flex', gap:'12px'}}>
-          <button className="btn-text-only" onClick={() => generateInstitutionalReport('Student Registry', ['ID', 'Name', 'RegNumber', 'Program', 'Batch'], students)} style={{color:'white', background:'rgba(255,255,255,0.05)', padding:'8px 16px', borderRadius:'8px'}}>
+          <button className="btn-text-only" onClick={() => generateInstitutionalReport('Student Registry', ['ID', 'Name', 'RegNumber', 'Program', 'Batch'], students)} style={{color:'var(--text-main)', background:'var(--surface-container-high)', padding:'8px 16px', borderRadius:'8px'}}>
              📊 Export Registry
           </button>
           <button className="btn-primary-premium" onClick={() => openForm('student')}>
@@ -76,8 +76,8 @@ const StudentManagement = ({ students, finance, openForm, handleDelete, setStude
                     </td>
                     <td>
                       <div className="user-info-cell">
-                        <div className="user-avatar-small">{student.name.charAt(0)}</div>
-                        <span className="user-name-cell" style={{fontSize:'15px'}}>{student.name}</span>
+                        <div className="user-avatar-small">{(student.name || 'S').charAt(0)}</div>
+                        <span className="user-name-cell" style={{fontSize:'15px'}}>{student.name || 'Student Candidate'}</span>
                       </div>
                     </td>
                     <td>

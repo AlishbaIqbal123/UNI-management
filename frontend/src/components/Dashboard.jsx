@@ -19,12 +19,14 @@ const Dashboard = ({ stats, user, notices, onAction }) => {
     { id: 'registration',label: 'Course Registration',icon: '📚', handler: () => onAction('VIEW_REGISTRATION') },
     { id: 'finance',     label: 'My Fee Status',     icon: '💳', handler: () => onAction('VIEW_FINANCE') },
     { id: 'results',     label: 'My Transcript',     icon: '🎓', handler: () => onAction('VIEW_MY_RESULTS') },
+    { id: 'exams',       label: 'Exam Schedule',     icon: '📝', handler: () => onAction('VIEW_EXAMS') },
   ];
 
   const facultyActions = [
     { id: 'calendar',  label: 'Academic Calendar', icon: '📅', handler: () => onAction('VIEW_CALENDAR') },
     { id: 'grading',   label: 'Grade Students',    icon: '📝', handler: () => onAction('VIEW_GRADING') },
     { id: 'attendance',label: 'Mark Attendance',   icon: '✅', handler: () => onAction('VIEW_CLASSES') },
+    { id: 'exams',     label: 'Exam Schedule',     icon: '📅', handler: () => onAction('VIEW_EXAMS') },
     { id: 'profile',   label: 'My Profile',        icon: '👤', handler: () => onAction('VIEW_PROFILE') },
   ];
 

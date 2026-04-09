@@ -85,12 +85,12 @@ const EnrollmentManagement = ({ enrolments, setEnrolments, students, courses, no
                     <td>
                       <div className="user-info-cell">
                         <span className="user-name-cell" style={{fontWeight:600}}>{student?.name || 'Academic Member'}</span>
-                        <span className="font-monospace" style={{fontSize:'12px', opacity:0.9, color:'white', letterSpacing:'0.5px'}}>{student?.regNumber || 'Pending ID'}</span>
+                        <span className="font-monospace" style={{fontSize:'12px', opacity:0.9, color:'var(--text-main)', letterSpacing:'0.5px'}}>{student?.regNumber || 'Pending ID'}</span>
                       </div>
                     </td>
                     <td>
                       <div style={{display:'flex', flexDirection:'column'}}>
-                        <span style={{fontWeight:500, color:'white'}}>{course?.courseName || 'Advanced Study'}</span>
+                        <span style={{fontWeight:500, color:'var(--text-main)'}}>{course?.courseName || 'Advanced Study'}</span>
                         <span className="font-monospace" style={{fontSize:'10px', opacity:0.6}}>{e.courseID}</span>
                       </div>
                     </td>
