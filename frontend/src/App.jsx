@@ -17,7 +17,9 @@ import FacultyWorkspace from './components/FacultyWorkspace';
 import NoticeManagement from './components/NoticeManagement';
 import StudentAcademicView from './components/StudentAcademicView';
 import AdminOverrideManagement from './components/AdminOverrideManagement';
+import EnrollmentManagement from './components/EnrollmentManagement';
 import { generateInstitutionalReport } from './lib/exportUtils';
+
 
 
 const ROLES = { ADMIN: 'Admin', STUDENT: 'Student', FACULTY: 'Faculty', FINANCE: 'Finance' };
