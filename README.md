@@ -1,4 +1,4 @@
-# 🏛️ University Management OS (UMS)
+# 🏛️ University Management System
 **The Fully Connected Academic Ecosystem**
 
 A high-fidelity institutional management system designed to synchronize Administrative, Academic, and Financial operations in real-time.
@@ -112,3 +112,6 @@ The system enforces a **Financial Gate** on student registrations. Below are the
 ---
 *Developed for Excellence in Institutional Administration.*
 
+**Developed by:**
+*   Minahil Anjum (039)
+*   Alishba Iqbal (002)
