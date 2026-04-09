@@ -26,9 +26,11 @@ const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick, isOpen 
     { id: 'departments', label: 'Departments', icon: icons.dept, access: [ROLES.ADMIN] },
     { id: 'catalog', label: 'Course Catalog', icon: icons.catalog, access: [ROLES.ADMIN] },
     {id: 'enrolments', label: 'Registration Prep', icon: icons.enrol, access: [ROLES.ADMIN] },
-    { id: 'results', label: 'Results', icon: icons.result, access: [ROLES.ADMIN] },
+    { id: 'results', label: 'Results Catalog', icon: icons.result, access: [ROLES.ADMIN] },
     { id: 'overrides', label: 'Admin Overrides', icon: icons.enrol, access: [ROLES.ADMIN] },
+    { id: 'blocked-audit', label: 'Blocked Students', icon: icons.report, access: [ROLES.ADMIN] },
     { id: 'finance', label: 'Financial Hub', icon: icons.financial, access: [ROLES.ADMIN, ROLES.FINANCE] },
+
     { id: 'notices', label: 'Announcements', icon: icons.report, access: [ROLES.ADMIN, ROLES.STUDENT, ROLES.FACULTY, ROLES.FINANCE] },
     { id: 'calendar', label: 'Academic Calendar', icon: icons.dashboard, access: [ROLES.ADMIN, ROLES.STUDENT, ROLES.FACULTY, ROLES.FINANCE] },
 

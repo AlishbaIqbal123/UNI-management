@@ -32,11 +32,14 @@ const EnrollmentManagement = ({ enrolments, setEnrolments, students, courses, no
 
   const filtered = enrolments.filter(e => {
     const student = students.find(s => s.id === e.studentID || s.dbID === e.studentID);
+    if (!student) return false; // Hide "Pending ID" or orphaned records
+    
     const course = courses.find(c => c.courseID === e.courseID);
     return (student?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-           e.studentID.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           (student?.regNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
            (course?.courseName || '').toLowerCase().includes(searchTerm.toLowerCase());
   });
+
 
   return (
     <div className="view-container fade-in">

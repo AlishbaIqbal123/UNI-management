@@ -445,6 +445,39 @@ function App() {
       case 'registration': 
         return <CourseRegistration courses={courses} enrolments={enrolments} setEnrolments={setEnrolments} user={user} results={results} notify={notify} finance={finance} adminOverrides={adminOverrides} />;
 
+      case 'blocked-audit':
+        return (
+          <div className="view-container fade-in">
+            <div className="view-header-premium">
+              <h1>Financial Block Audit</h1>
+              <p>Registry of students currently restricted from registration due to outstanding dues.</p>
+            </div>
+            <div className="table-card-premium glass-card">
+              <table className="premium-table">
+                <thead><tr><th>Student Record</th><th>Identity</th><th>Outstanding</th><th>Override Status</th></tr></thead>
+                <tbody>
+                  {students.filter(s => {
+                    const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID);
+                    const isCleared = fin && (fin.dueAmount === 0);
+                    const hasOverride = adminOverrides.some(o => o.studentID === s.id && o.registrationAllowed);
+                    return !isCleared && !hasOverride;
+                  }).map(s => {
+                    const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID);
+                    return (
+                      <tr key={s.id}>
+                        <td><span style={{fontWeight:600}}>{s.name}</span></td>
+                        <td className="font-monospace" style={{fontSize:'12px'}}>{s.regNumber || s.id}</td>
+                        <td style={{color:'#ef4444', fontWeight:700}}>PKR {(fin?.dueAmount || 45000).toLocaleString()}</td>
+                        <td><span className="badge-premium" style={{opacity:0.5}}>No Active Override</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
       case 'academic-progress':
         return <StudentAcademicView user={user} enrolments={enrolments} attendance={attendance} assessments={assessments} marks={marks} courses={courses} />;
 
