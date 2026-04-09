@@ -416,7 +416,7 @@ function App() {
       
       case 'departments': return <DepartmentManagement departments={departments} />;
       
-      case 'catalog': return <CourseManagement courses={courses} setCourses={setCourses} user={user} openForm={openForm} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
+      case 'catalog': return <CourseManagement courses={courses} setCourses={setCourses} faculty={faculty} enrolments={enrolments} user={user} openForm={openForm} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
       
       case 'finance': return <FinanceManagement finance={finance} user={user} students={students} setFinance={setFinance} openForm={openForm} />;
       case 'my-finance': return <FinanceManagement finance={finance} user={user} students={students} setFinance={setFinance} openForm={openForm} />;
@@ -762,14 +762,270 @@ function App() {
                  </div>
                ) : modalCtx.type === 'calendar_update' ? (
                  <textarea className="input-premium" style={{height:'150px'}} placeholder="Event | Date Range..." onChange={e => setFormData({raw: e.target.value})} />
-               ) : (
-                <>
-                 <input className="input-premium" placeholder="Primary ID" name="id" onChange={e => setFormData({...formData, id: e.target.value})} />
-                 <input className="input-premium" placeholder="Full Name / Title" name="name" onChange={e => setFormData({...formData, name: e.target.value})} />
-                 <input className="input-premium" placeholder="Metadata (Prop/Dept/Batch)" name="meta" onChange={e => setFormData({...formData, program: e.target.value})} />
-                </>
+                ) : modalCtx.type === 'course_roster' ? (
+                  <div style={{textAlign:'left', display:'flex', flexDirection:'column', height:'100%'}}>
+                    <div style={{marginBottom:'24px', borderBottom:'1px solid var(--glass-border)', paddingBottom:'16px'}}>
+                      <h3 style={{color:'var(--accent)', margin:0}}>{modalCtx.data?.courseID}: {modalCtx.data?.courseName}</h3>
+                      <div style={{fontSize:'12px', opacity:0.6, marginTop:'6px'}}>
+                        Assigned Lecturer: <span style={{color:'white'}}>{faculty.find(f => f.id === modalCtx.data?.assignedFacultyID)?.facultyName || 'TBD'}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="notices-scroll-area" style={{flex:1, maxHeight:'400px', overflowY:'auto', paddingRight:'8px'}}>
+                       <h4 style={{fontSize:'13px', marginBottom:'16px', opacity:0.8, textTransform:'uppercase', letterSpacing:'1px'}}>Enrolled Candidates ({enrolments.filter(e => e.courseID === modalCtx.data?.courseID).length})</h4>
+                       {enrolments.filter(e => e.courseID === modalCtx.data?.courseID).length > 0 ? (
+                         enrolments.filter(e => e.courseID === modalCtx.data?.courseID).map(e => {
+                           const student = students.find(s => s.dbID === e.studentID || s.id === e.studentID);
+                           return (
+                             <div key={e.registrationID} className="notice-item-premium" style={{padding:'16px', background:'rgba(255,255,255,0.03)', marginBottom:'12px', borderRadius:'10px', border:'1px solid rgba(255,255,255,0.05)'}}>
+                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                   <div>
+                                      <div style={{fontWeight:600, fontSize:'14px', color:'white'}}>{student?.name || 'Unknown Candidate'}</div>
+                                      <div style={{fontSize:'11px', opacity:0.5}}>{student?.regNumber || student?.id || e.studentID} — {student?.program || 'BSCS'}</div>
+                                   </div>
+                                   <span className="badge-premium" style={{fontSize:'9px', background:'rgba(255,255,255,0.05)'}}>CONFIRMED</span>
+                                </div>
+                             </div>
+                           )
+                         })
+                       ) : (
+                         <div style={{padding:'60px 40px', textAlign:'center', opacity:0.3, fontSize:'14px'}}>System indicates no candidates registered for this pedagogical offering.</div>
+                       )}
+                    </div>
+
+                    <div style={{marginTop:'24px', paddingTop:'16px', borderTop:'1px solid var(--glass-border)', display:'flex', gap:'12px'}}>
+                       <button className="btn-primary-premium" style={{width:'100%'}} onClick={() => setIsModalOpen(false)}>Close Roster Audit</button>
+                    </div>
+                  </div>
+                ) : (
+                <div style={{display:'flex', flexDirection:'column', height:'100%'}}>
+                  <div className="modal-content-scroll" style={{maxHeight:'65vh', overflowY:'auto', paddingRight:'8px', marginBottom:'20px'}}>
+                    <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+                        {modalCtx.type === 'student' ? (
+                          <div className="form-grid-premium" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
+                            <div>
+                              <label style={{fontSize:'12px', opacity:0.8}}>Full Name</label>
+                              <input className="input-premium" placeholder="System ID" value={formData.id || ''} onChange={e => setFormData({...formData, id: e.target.value})} style={{display:'none'}} />
+                              <input className="input-premium" placeholder="e.g. John Doe" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} />
+                            </div>
+                            <div>
+                              <label style={{fontSize:'12px', opacity:0.8}}>Registration Number</label>
+                              <input className="input-premium" placeholder="FA24-BCS-055" value={formData.regNumber || ''} onChange={e => setFormData({...formData, regNumber: e.target.value})} />
+                            </div>
+                            <div>
+                              <label style={{fontSize:'12px', opacity:0.8}}>Contact Phone</label>
+                              <input className="input-premium" placeholder="+92 3XX XXXXXXX" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                            </div>
+                            <div>
+                              <label style={{fontSize:'12px', opacity:0.8}}>Personal Email</label>
+                              <input className="input-premium" placeholder="john.doe@gmail.com" value={formData.personalEmail || ''} onChange={e => setFormData({...formData, personalEmail: e.target.value})} />
+                            </div>
+                            <div>
+                              <label style={{fontSize:'12px', opacity:0.8}}>Degree Program</label>
+                              <select className="input-premium" style={{background:'var(--surface-container-high)', color:'white'}} value={formData.program || ''} onChange={e => setFormData({...formData, program: e.target.value})}>
+                                <option value="">Select Program</option>
+                                <option value="BS Computer Science">BS Computer Science</option>
+                                <option value="BS Software Engineering">BS Software Engineering</option>
+                                <option value="BS Business Admin">BS Business Admin</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label style={{fontSize:'12px', opacity:0.8}}>Batch / Intake</label>
+                              <input className="input-premium" placeholder="Fall 2024" value={formData.batch || ''} onChange={e => setFormData({...formData, batch: e.target.value})} />
+                            </div>
+                          </div>
+                        ) : modalCtx.type === 'department' ? (
+                          <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+                            <div>
+                                <label style={{fontSize:'12px', opacity:0.8}}>Department Name</label>
+                                <input className="input-premium" placeholder="e.g. Humanities" value={formData.departmentName || ''} onChange={e => setFormData({...formData, departmentName: e.target.value})} />
+                            </div>
+                            <div>
+                                <label style={{fontSize:'12px', opacity:0.8}}>Head of Department</label>
+                                <select className="input-premium" value={formData.headOfDepartment || ''} onChange={e => setFormData({...formData, headOfDepartment: e.target.value})}>
+                                    <option value="">Select HOD</option>
+                                    {faculty.map(f => <option key={f.id} value={f.facultyName}>{f.facultyName}</option>)}
+                                </select>
+                            </div>
+                          </div>
+                        ) : modalCtx.type === 'assign_faculty' ? (
+                          <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+                            <div style={{background:'rgba(255,255,255,0.05)', padding:'12px', borderRadius:'8px', fontSize:'13px', border:'1px solid var(--glass-border)'}}>
+                                Targeting: <span style={{color:'var(--accent)'}}>{modalCtx.data?.dept}</span>
+                            </div>
+                            <div>
+                                <label style={{fontSize:'12px', opacity:0.8}}>Select Instructor</label>
+                                <select className="input-premium" value={formData.facultyId || ''} onChange={e => setFormData({...formData, facultyId: e.target.value})}>
+                                    <option value="">Choose Faculty</option>
+                                    {faculty.map(f => <option key={f.id} value={f.id}>{f.facultyName}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{fontSize:'12px', opacity:0.8}}>Target Course</label>
+                                <select className="input-premium" value={formData.courseID || ''} onChange={e => setFormData({...formData, courseID: e.target.value})}>
+                                    <option value="">Choose Course</option>
+                                    {courses.map(c => <option key={c.courseID} value={c.courseID}>{c.courseID}: {c.courseName}</option>)}
+                                </select>
+                            </div>
+                          </div>
+                        ) : modalCtx.type === 'faculty' ? (
+
+                          <div className="form-grid-premium" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
+                            <div>
+                               <label style={{fontSize:'12px', opacity:0.8}}>Full Name</label>
+                               <input className="input-premium" placeholder="e.g. Dr. Nasir" value={formData.facultyName || ''} onChange={e => setFormData({...formData, facultyName: e.target.value})} />
+                            </div>
+                            <div>
+                               <label style={{fontSize:'12px', opacity:0.8}}>Employee ID</label>
+                               <input className="input-premium" placeholder="VHR-F-001" value={formData.id || ''} onChange={e => setFormData({...formData, id: e.target.value})} />
+                            </div>
+                            <div>
+                               <label style={{fontSize:'12px', opacity:0.8}}>Designation</label>
+                               <input className="input-premium" placeholder="Assistant Professor" value={formData.designation || ''} onChange={e => setFormData({...formData, designation: e.target.value})} />
+                            </div>
+                            <div>
+                               <label style={{fontSize:'12px', opacity:0.8}}>Contact</label>
+                               <input className="input-premium" placeholder="+92 3XX XXXXXXX" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                            </div>
+                            <div style={{gridColumn:'span 2'}}>
+                               <label style={{fontSize:'12px', opacity:0.8}}>Personal Email</label>
+                               <input className="input-premium" placeholder="faculty@gmail.com" value={formData.personalEmail || ''} onChange={e => setFormData({...formData, personalEmail: e.target.value})} />
+                            </div>
+                          </div>
+                        ) : modalCtx.type === 'course' ? (
+                          <div className="form-grid-premium" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
+                            <div style={{gridColumn:'span 2'}}>
+                               <label style={{fontSize:'12px', opacity:0.8, display:'block', marginBottom:'8px'}}>Course Title</label>
+                               <input className="input-premium" placeholder="e.g. Artificial Intelligence" value={formData.courseName || ''} onChange={e => setFormData({...formData, courseName: e.target.value})} />
+                            </div>
+                            <div>
+                               <label style={{fontSize:'12px', opacity:0.8, display:'block', marginBottom:'8px'}}>Course Code</label>
+                               <input className="input-premium" placeholder="CSCXXX" value={formData.courseID || ''} onChange={e => setFormData({...formData, courseID: e.target.value})} />
+                            </div>
+                            <div>
+                               <label style={{fontSize:'12px', opacity:0.8, display:'block', marginBottom:'8px'}}>Credit Hours</label>
+                               <input className="input-premium" type="number" value={formData.credits || ''} onChange={e => setFormData({...formData, credits: e.target.value})} />
+                            </div>
+                            <div style={{gridColumn:'span 2'}}>
+                               <label style={{fontSize:'12px', opacity:0.8, display:'block', marginBottom:'8px'}}>Assigned Lecturer</label>
+                               <select className="input-premium" style={{background:'var(--surface-container-high)', color:'white', width:'100%'}} value={formData.assignedFacultyID || ''} onChange={e => setFormData({...formData, assignedFacultyID: e.target.value})}>
+                                  <option value="">Commission to TBD</option>
+                                  {faculty.filter(f => f.role !== 'Finance').map(f => (
+                                    <option key={f.id} value={f.id}>{f.facultyName} ({f.designation})</option>
+                                  ))}
+                               </select>
+                            </div>
+                            <div style={{gridColumn:'span 2'}}>
+                               <label style={{fontSize:'12px', opacity:0.8, display:'block', marginBottom:'8px'}}>Institutional Prerequisites (Comma Separated)</label>
+                               <input className="input-premium" placeholder="CSC101, MTH101" value={formData.prereqRaw || ''} onChange={e => setFormData({...formData, prereqRaw: e.target.value})} />
+                            </div>
+                          </div>
+                        ) : modalCtx.type === 'payment' ? (
+                          <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'20px'}}>
+                            <div>
+                               <label style={{fontSize:'13px', fontWeight:600, opacity:0.8, display:'block', marginBottom:'8px'}}>REGISTRATION NO</label>
+                               {(() => {
+                                  const student = students.find(s => s.dbID === formData.studentID || s.id === formData.studentID);
+                                  return (
+                                    <input 
+                                      className="input-premium" 
+                                      style={{fontWeight:600, color:'var(--accent)', letterSpacing:'1px'}}
+                                      value={student?.regNumber || formData.studentID || ''} 
+                                      onChange={e => setFormData({...formData, studentID: e.target.value})} 
+                                      placeholder="e.g. FA24-BCS-055"
+                                    />
+                                  );
+                               })()}
+                            </div>
+                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px'}}>
+                                <div>
+                                   <label style={{fontSize:'12px', opacity:0.8, display:'block', marginBottom:'8px'}}>Amount Received (PKR)</label>
+                                   <input className="input-premium" type="number" placeholder="50000" value={formData.amountPaid || ''} onChange={e => setFormData({...formData, amountPaid: e.target.value})} />
+                                </div>
+                                <div>
+                                   <label style={{fontSize:'12px', opacity:0.8, display:'block', marginBottom:'8px'}}>Outstanding Dues (PKR)</label>
+                                   <input className="input-premium" type="number" placeholder="0" value={formData.dueAmount || ''} onChange={e => setFormData({...formData, dueAmount: e.target.value})} />
+                                </div>
+                            </div>
+                          </div>
+                        ) : modalCtx.type === 'notice_create' ? (
+
+                          <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+                            <div>
+                              <label style={{fontSize:'12px', opacity:0.8}}>Announcement Title</label>
+                              <input className="input-premium" placeholder="e.g. Schedule Update" value={formData.title || ''} onChange={e => setFormData({...formData, title: e.target.value})} />
+                            </div>
+                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
+                              <div>
+                                <label style={{fontSize:'12px', opacity:0.8}}>Visibility Group</label>
+                                <select className="input-premium" value={formData.target || 'All'} onChange={e => setFormData({...formData, target: e.target.value})}>
+                                  <option value="All">Everyone (Global)</option>
+                                  <option value="Student">Students Only</option>
+                                  <option value="Faculty">Faculty Only</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label style={{fontSize:'12px', opacity:0.8}}>Priority / Type</label>
+                                <select className="input-premium" value={formData.type || 'Academic'} onChange={e => setFormData({...formData, type: e.target.value})}>
+                                  <option value="Academic">Academic (Standard)</option>
+                                  <option value="Event">Event (Gold)</option>
+                                  <option value="Emergency">Emergency (Ruby)</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div>
+                              <label style={{fontSize:'12px', opacity:0.8}}>Detailed Content</label>
+                              <textarea className="input-premium" style={{minHeight:'120px', resize:'vertical'}} placeholder="Enter announcement body..." value={formData.content || ''} onChange={e => setFormData({...formData, content: e.target.value})} />
+                            </div>
+                          </div>
+                        ) : modalCtx.type === 'notice_detail' ? (
+                          <div style={{textAlign:'left'}}>
+                            <div className="notice-meta-top" style={{marginBottom:'24px', borderBottom:'1px solid var(--glass-border)', paddingBottom:'16px'}}>
+                              <span className="notice-date">{modalCtx.data.date}</span>
+                              <span className="notice-tag badge-primary" style={{marginLeft:'Auto'}}>{modalCtx.data.type}</span>
+                            </div>
+                            <p style={{fontSize:'16px', lineHeight:'1.6', color:'white', opacity:0.9}}>{modalCtx.data.content}</p>
+                          </div>
+                        ) : modalCtx.type === 'admit_card_generated' ? (
+                         <div style={{background: 'rgba(255,255,255,0.05)', padding: '24px', borderRadius: '12px', border: '1px solid var(--glass-border)', textAlign:'left'}}>
+                           <div style={{display:'flex', justifyContent:'space-between', borderBottom:'1px solid var(--glass-border)', paddingBottom:'16px', marginBottom:'16px'}}>
+                              <h3 style={{color:'var(--accent)'}}>COMSATS University Islamabad</h3>
+                              <span className="badge-premium badge-primary">CONFIRMED</span>
+                           </div>
+                           <p><strong>Candidate:</strong> {modalCtx.data.name}</p>
+                           <p><strong>Tracking ID:</strong> <span className="font-monospace">{modalCtx.data.id}</span></p>
+                           <p><strong>Program focus:</strong> {modalCtx.data.program}</p>
+                           <p><strong>Test Date:</strong> {modalCtx.data.testDate} at {modalCtx.data.campus}</p>
+                         </div>
+                       ) : modalCtx.type === 'calendar_update' ? (
+                         <textarea className="input-premium" style={{height:'150px'}} placeholder="Event | Date Range..." onChange={e => setFormData({raw: e.target.value})} />
+                       ) : (
+                        <>
+                         <input className="input-premium" placeholder="Primary ID" name="id" onChange={e => setFormData({...formData, id: e.target.value})} />
+                         <input className="input-premium" placeholder="Full Name / Title" name="name" onChange={e => setFormData({...formData, name: e.target.value})} />
+                         <input className="input-premium" placeholder="Metadata (Prop/Dept/Batch)" name="meta" onChange={e => setFormData({...formData, program: e.target.value})} />
+                        </>
+                       )}
+                    </div>
+                  </div>
+                  
+                  <div className="modal-footer-premium" style={{display:'flex', gap:'12px', borderTop:'1px solid var(--glass-border)', paddingTop:'16px'}}>
+                     {modalCtx.type === 'admit_card_generated' ? (
+                       <>
+                         <button className="btn-primary-premium" style={{width:'100%'}} onClick={() => window.print()}>Print Admit Card</button>
+                         <button className="btn-text-only" style={{width:'100%', color:'white'}} onClick={() => setIsModalOpen(false)}>Continue</button>
+                       </>
+                     ) : modalCtx.type === 'notice_detail' ? (
+                       <button className="btn-primary-premium" style={{width:'100%'}} onClick={() => setIsModalOpen(false)}>Acknowledge Notice</button>
+                     ) : (
+                       <>
+                         <button className="btn-text-only" style={{flex:1}} onClick={() => setIsModalOpen(false)}>Cancel</button>
+                         <button className="btn-primary-premium" style={{flex:1}} onClick={handleSave}>Confirm Transaction</button>
+                       </>
+                     )}
+                  </div>
+                </div>
                )}
-               {modalCtx.type !== 'admit_card_generated' && <button className="btn-primary-premium mt-12" onClick={handleSave}>Confirm Transaction</button>}
             </div>
           </div>
         </div>

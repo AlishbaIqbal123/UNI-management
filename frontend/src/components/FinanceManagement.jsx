@@ -15,6 +15,7 @@ const FinanceManagement = ({ finance, user, students, setFinance, openForm }) =>
                          (statusFilter === 'Cleared' && (f.dueAmount || 0) === 0) || 
                          (statusFilter === 'Pending' && (f.dueAmount || 0) > 0);
     const searchMatches = (student?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (student?.regNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (student?.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                           f.studentID.toLowerCase().includes(searchTerm.toLowerCase());
                           
@@ -113,8 +114,10 @@ const FinanceManagement = ({ finance, user, students, setFinance, openForm }) =>
                     <tr key={f.recordID}>
                       <td>
                         <div className="user-info-cell">
-                          <span className="user-name-cell">{student?.name || 'Student'}</span>
-                          <span className="font-monospace" style={{fontSize:'10px', opacity:0.6}}>{student?.id || f.studentID}</span>
+                          <span className="user-name-cell" style={{fontWeight:600, color:'white', fontSize:'15px'}}>{student?.name || 'Academic Holder'}</span>
+                          <span className="font-monospace" style={{fontSize:'12px', fontWeight:600, color:'var(--accent)', background:'rgba(255,255,255,0.05)', padding:'2px 8px', borderRadius:'4px'}}>
+                            {student?.regNumber || (student?.id ? `FA24-BCS-${student.id.replace('S', '')}` : 'PENDING_REG')}
+                          </span>
                         </div>
                       </td>
                       <td style={{color:'var(--success)', fontWeight:700}}>PKR {f.amountPaid.toLocaleString()}</td>

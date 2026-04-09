@@ -71,18 +71,18 @@ const EnrollmentManagement = ({ enrolments, setEnrolments, students, courses, no
               </tr>
             </thead>
             <tbody>
-              {filtered.map(e => {
-                const student = students.find(s => s.id === e.studentID || s.dbID === e.studentID);
+              {filtered.map((e, index) => {
+                const student = students.find(s => s.dbID === e.studentID || s.id === e.studentID);
                 const course = courses.find(c => c.courseID === e.courseID);
                 return (
                   <tr key={e.registrationID}>
                     <td>
-                      <span className="font-monospace" style={{fontSize:'11px', opacity:0.8}}>#{String(e.registrationID).slice(0, 8)}</span>
+                      <span className="font-monospace" style={{fontSize:'12px', fontWeight:600, color:'var(--accent)'}}>#{index + 101}</span>
                     </td>
                     <td>
                       <div className="user-info-cell">
                         <span className="user-name-cell" style={{fontWeight:600}}>{student?.name || 'Academic Member'}</span>
-                        <span className="font-monospace" style={{fontSize:'11px', opacity:0.6}}>{student?.id || String(e.studentID).slice(0, 8)}</span>
+                        <span className="font-monospace" style={{fontSize:'12px', opacity:0.9, color:'white', letterSpacing:'0.5px'}}>{student?.regNumber || 'Pending ID'}</span>
                       </div>
                     </td>
                     <td>

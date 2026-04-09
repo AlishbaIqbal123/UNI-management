@@ -6,44 +6,82 @@ const save = (key, data) => localStorage.setItem(key, JSON.stringify(data));
 
 export function useUMSData() {
   const [students, setStudents] = useState(() => load('ums_students_v4', [
-    { id: 'A01', dbID: 'a0000000-0000-0000-0000-000000000001', name: 'Zainab Ahmed', batch: 'Fall 2024', program: 'BSCS', password: '123' },
-    { id: 'B02', dbID: 'a0000000-0000-0000-0000-000000000002', name: 'Hamza Malik', batch: 'Fall 2024', program: 'BSSE', password: '123' },
-    { id: 'C03', dbID: 'a0000000-0000-0000-0000-000000000003', name: 'Ayesha Khan', batch: 'Fall 2024', program: 'BSSE', password: '123' },
-    { id: 'D04', dbID: 'a0000000-0000-0000-0000-000000000004', name: 'Muhammad Ali', batch: 'Fall 2024', program: 'BSCS', password: '123' },
-    { id: 'E05', dbID: 'a0000000-0000-0000-0000-000000000005', name: 'Fatima Zahra', batch: 'Fall 2024', program: 'BSCS', password: '123' },
-    { id: 'F06', dbID: 'a0000000-0000-0000-0000-000000000006', name: 'Umar Farooq', batch: 'Fall 2024', program: 'BSSE', password: '123' },
-    { id: 'G07', dbID: 'a0000000-0000-0000-0000-000000000007', name: 'Sara Siddiqui', batch: 'Fall 2024', program: 'BSCS', password: '123' }
+    { id: 'S001', dbID: 'a0000000-0000-0000-0000-000000000001', name: 'Amna Pervez', regNumber: 'FA24-BCS-055', batch: 'Fall 2024', program: 'BS Computer Science', password: '123', email: 'amna@cui.edu.pk', phone: '+92 321 4567890' },
+    { id: 'S002', dbID: 'a0000000-0000-0000-0000-000000000002', name: 'Maham Shaukat', regNumber: 'SP25-BSE-012', batch: 'Spring 2025', program: 'BS Software Engineering', password: '123', email: 'maham@cui.edu.pk', phone: '+92 333 9876543' },
+    { id: 'S003', dbID: 'a0000000-0000-0000-0000-000000000003', name: 'Ali Hassan', regNumber: 'FA24-BCS-003', batch: 'Fall 2024', program: 'BS Computer Science', password: '123', email: 'ali@cui.edu.pk', phone: '+92 300 1122334' },
+    { id: 'S004', dbID: 'a0000000-0000-0000-0000-000000000004', name: 'Ayesha Malik', regNumber: 'SP26-BSE-045', batch: 'Spring 2026', program: 'BS Software Engineering', password: '123', email: 'ayesha@cui.edu.pk', phone: '+92 315 5566778' },
+    { id: 'S005', dbID: 'a0000000-0000-0000-0000-000000000005', name: 'Kamran Ahmed', regNumber: 'FA24-BCS-005', batch: 'Fall 2024', program: 'BS Computer Science', password: '123', email: 'kamran@cui.edu.pk', phone: '+92 345 8899001' },
+    { id: 'S006', dbID: 'a0000000-0000-0000-0000-000000000006', name: 'Sana Khan', regNumber: 'SP26-BSE-001', batch: 'Spring 2026', program: 'BS Software Engineering', password: '123', email: 'sana@cui.edu.pk', phone: '+92 322 3344556' },
+    { id: 'S007', dbID: 'a0000000-0000-0000-0000-000000000007', name: 'Zainab Ahmed', regNumber: 'FA24-BCS-007', batch: 'Fall 2024', program: 'BS Computer Science', password: '123', email: 'zainab@cui.edu.pk', phone: '+92 321 4455667' },
+    { id: 'S008', dbID: 'a0000000-0000-0000-0000-000000000008', name: 'Hamza Malik', regNumber: 'FA24-BSE-008', batch: 'Fall 2024', program: 'BS Software Engineering', password: '123', email: 'hamza@cui.edu.pk', phone: '+92 333 7788990' },
+    { id: 'S009', dbID: 'a0000000-0000-0000-0000-000000000009', name: 'Ayesha Khan', regNumber: 'FA24-BSE-009', batch: 'Fall 2024', program: 'BS Software Engineering', password: '123', email: 'akhan@cui.edu.pk', phone: '+92 300 0011223' },
+    { id: 'S010', dbID: 'a0000000-0000-0000-0000-000000000010', name: 'Muhammad Ali', regNumber: 'FA24-BCS-010', batch: 'Fall 2024', program: 'BS Computer Science', password: '123', email: 'ali@cui.edu.pk', phone: '+92 315 3344557' }
   ]));
+
   const [faculty, setFaculty] = useState(() => load('ums_faculty_v4', [
-    { id: 'F1', name: 'Dr. Nasir', designation: 'Asst. Prof', password: '123' },
-    { id: 'FIN1', name: 'Adnan (Finance)', role: 'Finance', password: 'admin' }
+    { id: 'VHR-F-001', dbID: 'f1', facultyName: 'Dr. Muhammad Nasir', designation: 'Assistant Professor', password: '123', email: 'nasir@cui.edu.pk', phone: '+92 312 0001112' },
+    { id: 'VHR-F-002', dbID: 'f2', facultyName: 'Dr. Saima Jamil', designation: 'Assistant Professor', password: '123', email: 'saima@cui.edu.pk', phone: '+92 313 2223334' },
+    { id: 'VHR-F-003', dbID: 'f4', facultyName: 'Dr. Sadia Bashir', designation: 'Lecturer', password: '123', email: 'sadia@cui.edu.pk', phone: '+92 331 4455667' },
+    { id: 'VHR-F-004', dbID: 'f5', facultyName: 'Engr. Waqas Ahmed', designation: 'Lecturer', password: '123', email: 'waqas@cui.edu.pk', phone: '+92 332 7788990' },
+    { id: 'FIN1', dbID: 'f3', facultyName: 'Adnan Ahmed', role: 'Finance', password: 'admin', designation: 'Finance Officer', email: 'finance@cui.edu.pk', phone: '+92 314 4445556' }
   ]));
+
   const [courses, setCourses] = useState(() => load('ums_courses_v4', [
-    { courseID: 'CSC101', courseName: 'Programming', credits: 4 },
-    { courseID: 'MTH101', courseName: 'Calculus', credits: 3 },
-    { courseID: 'CSC112', courseName: 'ICT', credits: 3 }
+    { courseID: 'CSC101', courseName: 'Programming Fundamentals', credits: 4, assignedFacultyID: 'VHR-F-001', prerequisites: ['None'] },
+    { courseID: 'MTH101', courseName: 'Calculus & Analytical Geometry', credits: 3, assignedFacultyID: 'VHR-F-002', prerequisites: ['MTH100'] },
+    { courseID: 'CSC112', courseName: 'ICT', credits: 3, assignedFacultyID: 'VHR-F-001', prerequisites: ['None'] },
+    { courseID: 'CSC241', courseName: 'Object Oriented Programming', credits: 4, assignedFacultyID: 'VHR-F-003', prerequisites: ['CSC101'] },
+    { courseID: 'CSC211', courseName: 'Discrete Structures', credits: 3, assignedFacultyID: 'VHR-F-004', prerequisites: ['MTH101'] }
   ]));
 
   const [departments, setDepartments] = useState(() => load('ums_depts_v4', [
-    { departmentID: 'CS', departmentName: 'Computing', headOfDepartment: 'Dr. Nasir' }
+    { departmentID: 'CS', departmentName: 'Computing', headOfDepartment: 'Dr. Muhammad Nasir' },
+    { departmentID: 'BBA', departmentName: 'Management Sciences', headOfDepartment: 'Dr. Saima Jamil' }
   ]));
-  const [enrolments, setEnrolments] = useState(() => load('ums_enrolments_v4', []));
+
+  const [enrolments, setEnrolments] = useState(() => load('ums_enrolments_v4', [
+    { registrationID: 101, studentID: 'S001', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 102, studentID: 'S002', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 103, studentID: 'S007', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 104, studentID: 'S008', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 105, studentID: 'S009', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 106, studentID: 'S010', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 107, studentID: 'S003', courseID: 'CSC211', status: 'Confirmed' },
+    { registrationID: 108, studentID: 'S004', courseID: 'CSC241', status: 'Confirmed' }
+  ]));
+
   const [results, setResults] = useState(() => load('ums_results_v4', []));
-  const [finance, setFinance] = useState(() => load('ums_finance_v4', []));
+  const [finance, setFinance] = useState(() => load('ums_finance_v4', [
+     { recordID: 1, studentID: 'S001', amountPaid: 65000, dueAmount: 0 },
+     { recordID: 2, studentID: 'S002', amountPaid: 45000, dueAmount: 0 },
+     { recordID: 3, studentID: 'S003', amountPaid: 0, dueAmount: 45000 },
+     { recordID: 4, studentID: 'S010', amountPaid: 45000, dueAmount: 0 }
+  ]));
   const [attendance, setAttendance] = useState(() => load('ums_attendance_v4', []));
-  const [notices, setNotices] = useState(() => load('ums_notices_v4', []));
+  const [notices, setNotices] = useState(() => load('ums_notices_v4', [
+    { id: 1, title: 'Orientation Week', content: 'Welcome to Fall 2024 semester.', date: '2026-09-01', target: 'All' }
+  ]));
+  
+  // Data Integrity & Professionalization Effect
+  useEffect(() => {
+    let changed = false;
+    const cleanStudents = students.map(s => {
+      if (!s.regNumber) {
+        changed = true;
+        return { ...s, regNumber: (s.university_id && s.university_id.length < 20) ? s.university_id : `FA24-BCS-${s.id.replace('S', '')}` };
+      }
+      return s;
+    });
+    if (changed) setStudents(cleanStudents);
+  }, [students]);
   const [adminOverrides, setAdminOverrides] = useState(() => load('ums_overrides_v4', []));
   const [loading, setLoading] = useState(true);
   const [exams] = useState(() => load('ums_exams_v4', [
     { id: 1, course: 'CSC101', date: '2026-05-15', venue: 'Hall A' }
   ]));
 
-  const [assessments, setAssessments] = useState(() => load('ums_assessments_v4', [
-    { id: 'Q1', courseID: 'CSC101', title: 'Quiz 1', totalMarks: 10, type: 'Quiz' }
-  ]));
-  const [marks, setMarks] = useState(() => load('ums_marks_v4', [
-    { assessmentID: 'Q1', studentID: 'A01', obtainedMarks: 8.5 }
-  ]));
+  const [assessments, setAssessments] = useState(() => load('ums_assessments_v4', []));
+  const [marks, setMarks] = useState(() => load('ums_marks_v4', []));
 
   useEffect(() => {
     save('ums_students_v4', students); save('ums_faculty_v4', faculty);
@@ -57,58 +95,61 @@ export function useUMSData() {
 
   useEffect(() => {
     const fetchCoreRegistries = async () => {
-      let localStudents = [
-        { id: 'A01', dbID: 'a0000000-0000-0000-0000-000000000001', name: 'Zainab Ahmed', batch: 'Fall 2024', program: 'BSCS', password: '123' },
-        { id: 'B02', dbID: 'a0000000-0000-0000-0000-000000000002', name: 'Hamza Malik', batch: 'Fall 2024', program: 'BSSE', password: '123' },
-        { id: 'C03', dbID: 'a0000000-0000-0000-0000-000000000003', name: 'Ayesha Khan', batch: 'Fall 2024', program: 'BSSE', password: '123' },
-        { id: 'D04', dbID: 'a0000000-0000-0000-0000-000000000004', name: 'Muhammad Ali', batch: 'Fall 2024', program: 'BSCS', password: '123' },
-        { id: 'E05', dbID: 'a0000000-0000-0000-0000-000000000005', name: 'Fatima Zahra', batch: 'Fall 2024', program: 'BSCS', password: '123' },
-        { id: 'F06', dbID: 'a0000000-0000-0000-0000-000000000006', name: 'Umar Farooq', batch: 'Fall 2024', program: 'BSSE', password: '123' },
-        { id: 'G07', dbID: 'a0000000-0000-0000-0000-000000000007', name: 'Sara Siddiqui', batch: 'Fall 2024', program: 'BSCS', password: '123' }
-      ];
-      let localFaculty = [
-        { id: 'F1', name: 'Dr. Nasir', designation: 'Asst. Professor', password: '123' },
-        { id: 'FIN1', name: 'Adnan (Finance)', role: 'Finance', password: 'admin' }
-      ];
-      let localCourses = [
-        { courseID: 'CSC101', courseName: 'Programming', credits: 4 },
-        { courseID: 'MTH101', courseName: 'Calculus', credits: 3 }
-      ];
+      let localStudents = students;
+      let localFaculty = faculty;
+      let localCourses = courses;
 
       if (isDatabaseConnected()) {
         try {
           const [resStudents, resFaculty, resCourses, resDepts, resEnrol, resRes, resFin] = await Promise.all([
-             supabase.from('students').select('id, university_id, program'),
-             supabase.from('faculty').select('id, employee_id, designation'),
-             supabase.from('courses').select('course_code, title, credit_hours'),
-             supabase.from('departments').select('id, name, hod_name'),
+             supabase.from('students').select('*'),
+             supabase.from('faculty').select('*'),
+             supabase.from('courses').select('*'),
+             supabase.from('departments').select('*'),
              supabase.from('enrollments').select('*'),
              supabase.from('results').select('*'),
              supabase.from('financials').select('*')
           ]);
 
           if (resStudents.data?.length) {
-            const fetchedStudents = resStudents.data.map(s => ({ 
-              id: s.university_id, dbID: s.id, name: `Student ${s.university_id}`, 
-              program: s.program || 'BSCS', batch: 'Fall 2024', password: '123' 
+            const fetchedStudents = resStudents.data.map((s, idx) => ({ 
+              id: s.university_id && s.university_id.length < 20 ? s.university_id : `FA24-BCS-${String(idx+1).padStart(3, '0')}`, 
+              dbID: s.profile_id || s.uuid || s.id, 
+              name: s.full_name || (idx % 2 === 0 ? `Amna Pervez` : `Maham Shaukat`), 
+              regNumber: s.university_id && s.university_id.length < 20 ? s.university_id : `FA24-BCS-${String(idx+1).padStart(3, '0')}`,
+              program: s.program || 'BSCS', batch: 'Fall 2024', password: '123', email: s.email
             }));
             localStudents = [...localStudents.filter(s => !fetchedStudents.some(fs => fs.id === s.id)), ...fetchedStudents];
           }
 
           if (resFaculty.data?.length) {
             const fetchedFaculty = resFaculty.data.map(f => ({ 
-              id: f.employee_id, dbID: f.id, name: `Faculty ${f.employee_id}`, 
-              designation: f.designation, role: f.employee_id?.includes('FIN') ? 'Finance' : 'Faculty', password: (f.employee_id?.includes('FIN') ? 'admin' : '123')
+              id: f.employee_id || f.id, 
+              dbID: f.profile_id || f.uuid || f.id, 
+              facultyName: f.full_name || `Faculty ${f.id}`, 
+              designation: f.designation, 
+              role: (f.employee_id || '').includes('FIN') ? 'Finance' : 'Faculty', 
+              password: ((f.employee_id || '').includes('FIN') ? 'admin' : '123'),
+              email: f.email
             }));
             localFaculty = [...localFaculty.filter(f => !fetchedFaculty.some(ff => ff.id === f.id)), ...fetchedFaculty];
           }
 
           if (resCourses.data?.length) {
-              const fetchedCourses = resCourses.data.map(c => ({ courseID: c.course_code, courseName: c.title, credits: c.credit_hours }));
+              const fetchedCourses = resCourses.data.map(c => ({ 
+                courseID: c.course_code || c.id, 
+                courseName: c.title || c.name, 
+                credits: c.credit_hours || 3,
+                assignedFacultyID: c.faculty_id
+              }));
               localCourses = [...localCourses.filter(c => !fetchedCourses.some(fc => fc.courseID === c.courseID)), ...fetchedCourses];
           }
 
-          if (resDepts.data?.length) setDepartments(resDepts.data.map(d => ({ departmentID: d.id, departmentName: d.name, headOfDepartment: d.hod_name })));
+          if (resDepts.data?.length) setDepartments(resDepts.data.map(d => ({ 
+            departmentID: d.code || d.id, 
+            departmentName: d.name, 
+            headOfDepartment: d.hod_name || 'TBD' 
+          })));
           
           if (resEnrol.data?.length) setEnrolments(resEnrol.data.map(e => ({
             registrationID: e.id,

@@ -57,9 +57,9 @@ const StudentManagement = ({ students, openForm, handleDelete, setStudents }) =>
               </tr>
             </thead>
             <tbody>
-              {filteredStudents.map(student => (
+              {filteredStudents.map((student, index) => (
                 <tr key={student.id} onClick={() => openForm('student', student)} style={{cursor:'pointer'}}>
-                  <td className="font-monospace" style={{opacity:0.6}}>#{student.id}</td>
+                  <td className="font-monospace" style={{opacity:0.8, color:'var(--accent)'}}>#{String(index + 1).padStart(3, '0')}</td>
                   <td>
                     <div className="user-info-cell">
                       <div className="user-avatar-small">{student.name.charAt(0)}</div>
