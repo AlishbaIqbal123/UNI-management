@@ -375,7 +375,7 @@ function App() {
 
 
       
-      case 'students': return <StudentManagement students={students} openForm={openForm} handleDelete={(s,i,t) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:'id'})} setStudents={setStudents} />;
+      case 'students': return <StudentManagement students={students} finance={finance} openForm={openForm} handleDelete={(s,i,t) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:'id'})} setStudents={setStudents} />;
       
       case 'notices': 
         if (user.role === ROLES.ADMIN) return <NoticeManagement notices={notices} setNotices={setNotices} openForm={openForm} />;
@@ -679,21 +679,46 @@ function App() {
       case 'assign_hod':
         return (
           <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
-            <label style={{fontSize:'12px', opacity:0.8}}>Select Head of Department (Faculty Name)</label>
-            <input list="faculty-list" className="input-premium" placeholder="Search & Select Faculty..." onChange={e => setFormData({...formData, headOfDepartment: e.target.value})} />
+            <div style={{background:'rgba(255,255,255,0.05)', padding:'12px', borderRadius:'8px', border:'1px solid var(--glass-border)'}}>
+               <span style={{fontSize:'12px', opacity:0.6}}>Target Department:</span>
+               <div style={{fontSize:'16px', fontWeight:600, color:'var(--accent)'}}>{modalCtx.data?.departmentName}</div>
+            </div>
+            <label style={{fontSize:'12px', opacity:0.8}}>Search & Select Head of Department (HOD)</label>
+            <input 
+              list="faculty-list" 
+              className="input-premium" 
+              placeholder="Start typing teacher name..." 
+              style={{background:'var(--surface-container-high)', color:'white'}}
+              value={formData.headOfDepartment || ''} 
+              onChange={e => setFormData({...formData, headOfDepartment: e.target.value})} 
+            />
             <datalist id="faculty-list">
-              {faculty.map(f => (<option key={f.id} value={f.facultyName || f.name} />))}
+              {faculty.filter(f => f.role !== 'Finance').map(f => (<option key={f.id} value={f.facultyName || f.name}>{f.designation}</option>))}
             </datalist>
           </div>
         );
       case 'assign_faculty':
         return (
           <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
-            <label style={{fontSize:'12px', opacity:0.8}}>Select Course Faculty</label>
-            <select className="input-premium" style={{background:'var(--surface-container-high)', color:'white'}} value={formData.facultyId || ''} onChange={e => setFormData({...formData, facultyId: e.target.value})}>
-              <option value="">Select Faculty Member</option>
-              {faculty.map(f => (<option key={f.id} value={f.id}>{f.facultyName || f.name}</option>))}
-            </select>
+            <div style={{background:'rgba(255,255,255,0.05)', padding:'12px', borderRadius:'8px', border:'1px solid var(--glass-border)'}}>
+               <span style={{fontSize:'12px', opacity:0.6}}>Assigning Instructor to Course:</span>
+               <div style={{fontSize:'16px', fontWeight:600, color:'var(--accent)'}}>{modalCtx.data?.courseName} ({modalCtx.data?.courseID})</div>
+            </div>
+            <label style={{fontSize:'12px', opacity:0.8}}>Search & Select Instructor</label>
+            <input 
+                list="instructor-list"
+                className="input-premium" 
+                placeholder="Type to search teachers..."
+                style={{background:'var(--surface-container-high)', color:'white'}} 
+                value={formData.facultyId || ''} 
+                onChange={e => setFormData({...formData, facultyId: e.target.value})} 
+            />
+            <datalist id="instructor-list">
+                {faculty.filter(f => f.role !== 'Finance').map(f => (
+                  <option key={f.id} value={f.id}>{f.facultyName} ({f.designation})</option>
+                ))}
+            </datalist>
+            <p style={{fontSize:'11px', opacity:0.5}}>Selected ID will be officially mapped to this course ID in the Academic Registry.</p>
           </div>
         );
       case 'faculty':

@@ -57,7 +57,7 @@ const CourseManagement = ({ courses, setCourses, faculty, enrolments, user, open
                          <button 
                           className="btn-text-only" 
                           style={{padding:0, fontSize:'10px', display:'block', color:'var(--accent)'}}
-                          onClick={() => openForm('course', c)}
+                          onClick={() => openForm('assign_faculty', c)}
                          >
                             Reassign Faculty
                          </button>
