@@ -36,10 +36,11 @@ const DepartmentManagement = ({ departments, faculty, openForm }) => {
                     </div>
                   </td>
                   <td className="text-right">
-                      <button className="btn-text-only" style={{color:'var(--accent)', fontSize:'12px'}} onClick={() => openForm('assign_faculty', {dept: d.departmentName})}>
+                      <button className="btn-text-only" style={{color:'var(--accent)', fontSize:'12px'}} onClick={() => openForm('assign_hod', d)}>
                         Assign Faculty
                       </button>
                   </td>
+
                 </tr>
               ))}
             </tbody>

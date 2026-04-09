@@ -124,16 +124,34 @@ function App() {
     if (modalCtx.type === 'csv_import') return handleCSVImport(formData.raw);
     if (modalCtx.type === 'calendar_update') return handleCalendarUpdate(formData.raw);
 
+    if (modalCtx.type === 'assign_hod') {
+        const { id, departmentID } = modalCtx.data;
+        const targetID = id || departmentID;
+        setDepartments(prev => prev.map(d => (d.id === targetID || d.departmentID === targetID) ? { ...d, headOfDepartment: formData.headOfDepartment } : d));
+        notify(`Leadership assigned to ${formData.headOfDepartment}`);
+        setIsModalOpen(false);
+        return;
+    }
+
+    if (modalCtx.type === 'assign_faculty') {
+        const { courseID } = modalCtx.data;
+        setCourses(p => p.map(c => c.courseID === courseID ? { ...c, assignedFacultyID: formData.facultyId } : c));
+        notify("Course faculty updated successfully.");
+        setIsModalOpen(false);
+        return;
+    }
+
     const { type, data } = modalCtx;
-    const setters = { student: setStudents, faculty: setFaculty, finance: setFinance, courses: setCourses };
+    const setters = { student: setStudents, faculty: setFaculty, finance: setFinance, courses: setCourses, department: setDepartments };
     const setter = setters[type];
 
     if (setter) {
-        if (data) setter(prev => prev.map(x => (x.id || x.recordID || x.courseID) === (data.id || data.recordID || data.courseID) ? { ...x, ...formData } : x));
+        if (data) setter(prev => prev.map(x => (x.id || x.recordID || x.courseID || x.departmentID) === (data.id || data.recordID || data.courseID || data.departmentID) ? { ...x, ...formData } : x));
         else setter(prev => [...prev, formData]);
         notify("Operation completed successfully.");
     }
     setIsModalOpen(false);
+
   };
 
   const executeDelete = () => {
@@ -691,12 +709,36 @@ function App() {
                             {faculty.map(f => <option key={f.id} value={f.facultyName}>{f.facultyName}</option>)}
                         </select>
                     </div>
+                ) : modalCtx.type === 'assign_hod' ? (
+                  <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+                    <div style={{background:'rgba(255,255,255,0.05)', padding:'12px', borderRadius:'8px', fontSize:'13px', border:'1px solid var(--glass-border)'}}>
+                        Targeting Leadership Appointment: <span style={{color:'var(--accent)'}}>{modalCtx.data?.departmentName}</span>
+                    </div>
+                    <div>
+                        <label style={{fontSize:'12px', opacity:0.8, display:'block', marginBottom:'8px'}}>Search & Select Head of Department (HOD)</label>
+                        <input 
+                            list="faculty-list"
+                            className="input-premium" 
+                            placeholder="Type to search faculty..."
+                            style={{background:'var(--surface-container-high)', color:'white', width:'100%'}} 
+                            value={formData.headOfDepartment || ''} 
+                            onChange={e => setFormData({...formData, headOfDepartment: e.target.value})} 
+                        />
+                        <datalist id="faculty-list">
+                            {faculty.filter(f => f.role !== 'Finance').map(f => (
+                              <option key={f.id} value={f.facultyName}>{f.designation}</option>
+                            ))}
+                        </datalist>
+                    </div>
+
                   </div>
+
                 ) : modalCtx.type === 'assign_faculty' ? (
                   <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
                     <div style={{background:'rgba(255,255,255,0.05)', padding:'12px', borderRadius:'8px', fontSize:'13px', border:'1px solid var(--glass-border)'}}>
-                        Targeting: <span style={{color:'var(--accent)'}}>{modalCtx.data?.dept}</span>
+                        Targeting Course Assignment: <span style={{color:'var(--accent)'}}>{modalCtx.data?.courseName || modalCtx.data?.dept}</span>
                     </div>
+
                     <div>
                         <label style={{fontSize:'12px', opacity:0.8}}>Select Instructor</label>
                         <select className="input-premium" value={formData.facultyId || ''} onChange={e => setFormData({...formData, facultyId: e.target.value})}>
