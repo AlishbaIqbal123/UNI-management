@@ -1112,7 +1112,8 @@ function App() {
                          <input className="input-premium" placeholder="Full Name / Title" name="name" onChange={e => setFormData({...formData, name: e.target.value})} />
                          <input className="input-premium" placeholder="Metadata (Prop/Dept/Batch)" name="meta" onChange={e => setFormData({...formData, program: e.target.value})} />
                         </>
-                       )) } }
+                       ) } ) }
+
 
 
 
