@@ -47,8 +47,10 @@ function App() {
   const [formData, setFormData] = useState({});
   const [notifs, setNotifs] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, setter: null, id: null, typeName: '', idKey: 'id' });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Advanced Academic Calendar State
+
   const [calendarConfig, setCalendarConfig] = useState({ 
     headerText: "OFFICIAL ACADEMIC CALENDAR - FALL 2026 SEMESTER (CUI VEHARI)",
     footerText: "Note: The university reserves the right to modify these dates based on official gazetted holidays.",
@@ -514,7 +516,7 @@ function App() {
 
       case 'finance': return <FinanceManagement finance={finance} user={user} students={students} setFinance={setFinance} openForm={openForm} />;
       
-      case 'overrides': return <AdminOverrideManagement overrides={adminOverrides} setOverrides={setAdminOverrides} students={students} notify={notify} />;
+      case 'overrides': return <AdminOverrideManagement adminOverrides={adminOverrides} setAdminOverrides={setAdminOverrides} students={students} notify={notify} />;
 
       case 'calendar':
         return (
@@ -567,7 +569,25 @@ function App() {
 
   return (
     <div className="app-wrapper-premium" onKeyDown={(e) => e.key === 'Enter' && isModalOpen && handleSave()}>
-      <Sidebar user={user} activeTab={activeTab} setActiveTab={switchTab} onLogout={handleLogout} onHomeClick={() => setActiveTab('dashboard')} />
+      
+      <button className="hamburger-premium" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+
+      <div className="mobile-header-premium">
+        <img src="https://crystalpng.com/wp-content/uploads/2022/02/COMSATS-University-logo.png" alt="COMSATS" style={{height:'32px'}} />
+      </div>
+
+      {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />}
+
+      <Sidebar 
+        user={user} 
+        activeTab={activeTab} 
+        setActiveTab={(tab) => { switchTab(tab); setIsSidebarOpen(false); }} 
+        onLogout={handleLogout} 
+        onHomeClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} 
+        isOpen={isSidebarOpen}
+      />
       <main className="main-content-premium" style={{display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden'}}>
         <div className="scroll-surface">
             <header className="view-breadcrumb">CUI VEHARI / {user.role.toUpperCase()} / {activeTab.toUpperCase()}</header>

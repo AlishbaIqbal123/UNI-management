@@ -17,7 +17,7 @@ const icons = {
 const ROLES = { ADMIN: 'Admin', STUDENT: 'Student', FACULTY: 'Faculty', FINANCE: 'Finance' };
 
 
-const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick }) => {
+const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick, isOpen }) => {
   const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: icons.dashboard },
     { id: 'students', label: 'Students', icon: icons.student, access: [ROLES.ADMIN] },
@@ -45,7 +45,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick }) => {
 
 
   return (
-    <aside className="sidebar premium-sidebar">
+    <aside className={`sidebar premium-sidebar ${isOpen ? 'open' : ''}`}>
       <div className="logo-container" onClick={onHomeClick} style={{cursor: 'pointer', display:'flex', alignItems:'center', gap:'12px'}}>
         <img src="https://crystalpng.com/wp-content/uploads/2022/02/COMSATS-University-logo.png" alt="COMSATS" style={{width:'40px', height:'40px', objectFit:'contain'}} />
         <div className="logo-text-stack">
