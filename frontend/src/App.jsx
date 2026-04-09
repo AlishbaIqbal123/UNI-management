@@ -709,7 +709,8 @@ function App() {
                             {faculty.map(f => <option key={f.id} value={f.facultyName}>{f.facultyName}</option>)}
                         </select>
                     </div>
-                ) : modalCtx.type === 'assign_hod' ? (
+                  ) : modalCtx.type === 'assign_hod' ? (
+
                   <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
                     <div style={{background:'rgba(255,255,255,0.05)', padding:'12px', borderRadius:'8px', fontSize:'13px', border:'1px solid var(--glass-border)'}}>
                         Targeting Leadership Appointment: <span style={{color:'var(--accent)'}}>{modalCtx.data?.departmentName}</span>
@@ -1112,7 +1113,6 @@ function App() {
                         </>
                        )}
                     </div>
-                  </div>
                   
                   <div className="modal-footer-premium" style={{display:'flex', gap:'12px', borderTop:'1px solid var(--glass-border)', paddingTop:'16px'}}>
                      {modalCtx.type === 'admit_card_generated' ? (
@@ -1128,13 +1128,10 @@ function App() {
                          <button className="btn-primary-premium" style={{flex:1}} onClick={handleSave}>Confirm Transaction</button>
                        </>
                      )}
-                  </div>
-                </div>
-               )}
-            </div>
-          </div>
-        </div>
-      )}
+                   </div>
+                 </div>
+             </div>
+       )}
 
       {deleteConfirm.open && (
         <div className="modal-overlay-premium"><div className="modal-card-premium glass-card danger-zone">
