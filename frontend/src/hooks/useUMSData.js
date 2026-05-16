@@ -84,6 +84,11 @@ export function useUMSData() {
 
   const [assessments, setAssessments] = useState(() => load('ums_assessments_v4', []));
   const [marks, setMarks] = useState(() => load('ums_marks_v4', []));
+  const [feePayments, setFeePayments] = useState(() => load('ums_fee_payments_v1', []));
+  const [timetableUploads, setTimetableUploads] = useState(() => load('ums_timetable_uploads_v1', []));
+  const [timetableEntries, setTimetableEntries] = useState(() => load('ums_timetable_entries_v1', []));
+  const [sessions, setSessions] = useState(() => load('ums_sessions_v1', []));
+  const [sessionAttendance, setSessionAttendance] = useState(() => load('ums_session_attendance_v1', []));
 
   useEffect(() => {
     save('ums_students_v4', students); save('ums_faculty_v4', faculty);
@@ -92,8 +97,10 @@ export function useUMSData() {
     save('ums_finance_v4', finance); save('ums_attendance_v4', attendance);
     save('ums_notices_v4', notices); save('ums_exams_v4', exams);
     save('ums_overrides_v4', adminOverrides); save('ums_assessments_v4', assessments);
-    save('ums_marks_v4', marks);
-  }, [students, faculty, courses, departments, enrolments, results, finance, attendance, notices, exams, adminOverrides, assessments, marks]);
+    save('ums_marks_v4', marks); save('ums_fee_payments_v1', feePayments);
+    save('ums_timetable_uploads_v1', timetableUploads); save('ums_timetable_entries_v1', timetableEntries);
+    save('ums_sessions_v1', sessions); save('ums_session_attendance_v1', sessionAttendance);
+  }, [students, faculty, courses, departments, enrolments, results, finance, attendance, notices, exams, adminOverrides, assessments, marks, feePayments, timetableUploads, timetableEntries, sessions, sessionAttendance]);
 
   useEffect(() => {
     const fetchCoreRegistries = async () => {
@@ -103,14 +110,19 @@ export function useUMSData() {
 
       if (isDatabaseConnected()) {
         try {
-          const [resStudents, resFaculty, resCourses, resDepts, resEnrol, resRes, resFin] = await Promise.all([
+          const [resStudents, resFaculty, resCourses, resDepts, resEnrol, resRes, resFin, resPay, resUploads, resEntries, resSessions, resAttend] = await Promise.all([
              supabase.from('students').select('*'),
              supabase.from('faculty').select('*'),
              supabase.from('courses').select('*'),
              supabase.from('departments').select('*'),
              supabase.from('enrollments').select('*'),
              supabase.from('results').select('*'),
-             supabase.from('financials').select('*')
+             supabase.from('financials').select('*'),
+             supabase.from('fee_payments').select('*'),
+             supabase.from('timetable_uploads').select('*'),
+             supabase.from('timetable_entries').select('*'),
+             supabase.from('sessions').select('*'),
+             supabase.from('session_attendance').select('*')
           ]);
 
           if (resStudents.data?.length) {
@@ -173,7 +185,53 @@ export function useUMSData() {
             recordID: f.id, 
             studentID: f.student_id, 
             amountPaid: f.amount_paid || 0, 
-            dueAmount: f.due_amount || 0 
+            dueAmount: f.due_amount || 0,
+            totalFee: f.total_fee || 0,
+            semester: f.semester || 'Fall 2024'
+          })));
+
+          if (resPay?.data?.length) setFeePayments(resPay.data.map(p => ({
+            id: p.id,
+            studentID: p.student_id,
+            amountPaid: p.amount_paid,
+            paymentDate: p.payment_date,
+            reference: p.reference
+          })));
+
+          if (resUploads?.data?.length) setTimetableUploads(resUploads.data.map(u => ({
+            id: u.id,
+            fileURL: u.file_url,
+            type: u.type,
+            semesterLabel: u.semester_label,
+            uploadedAt: u.uploaded_at
+          })));
+
+          if (resEntries?.data?.length) setTimetableEntries(resEntries.data);
+
+          if (resSessions?.data?.length) setSessions(resSessions.data);
+          if (resAttend?.data?.length) setSessionAttendance(resAttend.data);
+
+          const { data: resAsst } = await supabase.from('assessments').select('*');
+          if (resAsst?.length) setAssessments(resAsst.map(a => ({
+            id: a.id,
+            courseID: a.course_id,
+            section: a.section,
+            department: a.department,
+            type: a.type,
+            title: a.title,
+            totalMarks: a.total_marks,
+            conductedDate: a.conducted_date,
+            createdBy: a.created_by
+          })));
+
+          const { data: resMarks } = await supabase.from('marks').select('*');
+          if (resMarks?.length) setMarks(resMarks.map(m => ({
+            id: m.id,
+            assessmentID: m.assessment_id,
+            studentID: m.student_id,
+            obtainedMarks: m.obtained_marks,
+            submittedAt: m.submitted_at,
+            remarks: m.remarks
           })));
 
         } catch (e) {
@@ -199,6 +257,13 @@ export function useUMSData() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => fetchCoreRegistries())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'assessments' }, () => fetchCoreRegistries())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'financials' }, () => fetchCoreRegistries())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_payments' }, () => fetchCoreRegistries())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'timetable_uploads' }, () => fetchCoreRegistries())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'timetable_entries' }, () => fetchCoreRegistries())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'assessments' }, () => fetchCoreRegistries())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'marks' }, () => fetchCoreRegistries())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => fetchCoreRegistries())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'session_attendance' }, () => fetchCoreRegistries())
         .subscribe();
 
       return () => {
@@ -221,6 +286,11 @@ export function useUMSData() {
     adminOverrides, setAdminOverrides,
     assessments, setAssessments,
     marks, setMarks,
+    feePayments, setFeePayments,
+    timetableUploads, setTimetableUploads,
+    timetableEntries, setTimetableEntries,
+    sessions, setSessions,
+    sessionAttendance, setSessionAttendance,
     loading
   };
 }

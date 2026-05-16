@@ -11,7 +11,8 @@ const icons = {
   attendance: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>,
   report: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>,
   logout: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>,
-  enrol: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="16" y1="11" x2="22" y2="11"></line></svg>
+  enrol: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="16" y1="11" x2="22" y2="11"></line></svg>,
+  calendar: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
 };
 
 const ROLES = { ADMIN: 'Admin', STUDENT: 'Student', FACULTY: 'Faculty', FINANCE: 'Finance' };
@@ -29,6 +30,7 @@ const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick, isOpen,
     { id: 'results', label: 'Results Catalog', icon: icons.result, access: [ROLES.ADMIN] },
     { id: 'overrides', label: 'Admin Overrides', icon: icons.enrol, access: [ROLES.ADMIN] },
     { id: 'blocked-audit', label: 'Blocked Students', icon: icons.report, access: [ROLES.ADMIN] },
+    { id: 'timetable', label: 'Timetable Mgt', icon: icons.calendar, access: [ROLES.ADMIN] },
     { id: 'finance', label: 'Financial Hub', icon: icons.financial, access: [ROLES.ADMIN, ROLES.FINANCE] },
     { id: 'exams', label: 'Exam Schedule', icon: icons.result, access: [ROLES.ADMIN, ROLES.STUDENT, ROLES.FACULTY] },
 
@@ -39,8 +41,10 @@ const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick, isOpen,
     { id: 'registration', label: 'Registration', icon: icons.catalog, access: [ROLES.STUDENT] },
     { id: 'academic-progress', label: 'My Progress', icon: icons.attendance, access: [ROLES.STUDENT] },
     { id: 'my-results', label: 'My Results', icon: icons.result, access: [ROLES.STUDENT] },
+    { id: 'my-timetable', label: 'My Timetable', icon: icons.calendar, access: [ROLES.STUDENT] },
     { id: 'my-finance', label: 'My Finance', icon: icons.financial, access: [ROLES.STUDENT] },
     { id: 'classes', label: 'My Classes', icon: icons.catalog, access: [ROLES.FACULTY] },
+    { id: 'faculty-timetable', label: 'My Timetable', icon: icons.calendar, access: [ROLES.FACULTY] },
     { id: 'grading', label: 'Grading', icon: icons.result, access: [ROLES.FACULTY] },
     { id: 'profile', label: 'Profile Settings', icon: icons.student, access: [ROLES.STUDENT, ROLES.FACULTY, ROLES.FINANCE] },
 

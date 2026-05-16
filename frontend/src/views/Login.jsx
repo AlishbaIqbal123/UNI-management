@@ -1,146 +1,250 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 const ROLES = { ADMIN: 'Admin', STUDENT: 'Student', FACULTY: 'Faculty', FINANCE: 'Finance' };
 
 const Login = ({ onLogin, setStep, loginStep, authData, setAuthData, regSubStep, setRegSubStep, handleRegister }) => {
+  const isInvertedBtn = {
+    background: 'var(--color-ink)',
+    color: 'var(--color-bg)',
+    width: '100%',
+    padding: '14px',
+    fontSize: '14px',
+    marginTop: '24px',
+    border: 'none',
+    boxShadow: 'var(--shadow)'
+  };
+
   return (
-    <div className="login-screen-premium fade-in">
-      <div className="login-card-premium">
-        <img src="https://crystalpng.com/wp-content/uploads/2022/02/COMSATS-University-logo.png" alt="COMSATS" style={{width:'80px', height:'80px', margin:'0 auto 24px', display:'block', objectFit:'contain'}} />
-        <h1>System Gateway</h1>
-        
-        {loginStep === 'choice' && (
-          <div className="role-buttons-premium">
-            <div className="role-chips">
-              <div className="role-chip" onClick={() => setStep('admin')}>Admin</div>
-              <div className="role-chip" onClick={() => setStep('student')}>Student</div>
-              <div className="role-chip" onClick={() => setStep('faculty')}>Faculty</div>
-              <div className="role-chip" style={{border: '1px solid var(--accent)'}} onClick={() => setStep('finance')}>Finance</div>
-            </div>
-             <div className="credentials-tip mt-24" style={{fontSize: '12px', opacity: 0.8, background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '12px'}}>
-                 <p><strong>Admin:</strong> ADMIN / admin</p>
-                 <p><strong>Student:</strong> S001 / 123</p>
-                 <p><strong>Faculty:</strong> VHR-F-001 / 123</p>
-                 <p><strong>Finance:</strong> FIN1 / admin</p>
-             </div>
-
-            <p className="mt-24" style={{opacity: 0.7}}>New to the university? <span className="link-gold" style={{color: 'var(--accent)', cursor: 'pointer', fontWeight: '700'}} onClick={() => setStep('register')}>Apply Now</span></p>
-          </div>
-        )}
-
-        {(['admin', 'student', 'faculty', 'finance', 'forgot'].includes(loginStep)) && (
-          <div className="form-group-premium">
-            {loginStep === 'forgot' ? (
-              <>
-                <h2 style={{fontSize: '18px', marginBottom: '16px', opacity: 0.8}}>RECOVER ACCESS</h2>
-                <label>Institutional Identifier</label>
-                <input autoFocus className="input-premium" placeholder="e.g. FA24-BCS-001" value={authData.id} onChange={e => setAuthData({...authData, id: e.target.value})} />
-                <label>Verification Token / Security Answer</label>
-                <input className="input-premium" placeholder="Enter last 4 digits of Phone" value={authData.securityToken || ''} onChange={e => setAuthData({...authData, securityToken: e.target.value})} />
-                <button className="btn-login-premium mt-12" onClick={() => { alert("Recovery Key Sent to Personal Email: " + (authData.id ? "z****@gmail.com" : "N/A")); setStep('choice'); }}>Initiate Reset Cycle</button>
-              </>
-            ) : (
-              <>
-                <h2 style={{fontSize: '18px', marginBottom: '16px', opacity: 0.8}}>{loginStep.toUpperCase()} LOGIN</h2>
-                <label>Identification</label>
-                <input 
-                  autoFocus 
-                  className="input-premium"
-                  placeholder="Enter ID or Email" 
-                  value={authData.id} 
-                  onChange={e => setAuthData({...authData, id: e.target.value})} 
-                  onKeyDown={e => e.key === 'Enter' && onLogin(ROLES[loginStep.toUpperCase()])}
-                />
-                <label>Security Key</label>
-                <input 
-                  className="input-premium"
-                  placeholder="Enter Password" 
-                  type="password" 
-                  value={authData.password} 
-                  onChange={e => setAuthData({...authData, password: e.target.value})} 
-                  onKeyDown={e => e.key === 'Enter' && onLogin(ROLES[loginStep.toUpperCase()])}
-                />
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'8px'}}>
-                    <span className="link-gold" style={{fontSize:'12px', cursor:'pointer', opacity:0.8}} onClick={() => setStep('forgot')}>Forgot Security Key?</span>
-                </div>
-                <button className="btn-login-premium" style={{marginTop:'24px'}} onClick={() => onLogin(ROLES[loginStep.toUpperCase()])}>Authorize Access</button>
-              </>
-            )}
-            <button className="btn-icon-premium" style={{color: 'white', marginTop: '12px'}} onClick={() => setStep('choice')}>← Go Back</button>
-          </div>
-        )}
-
-
-        {loginStep === 'register' && (
-          <div className="form-group-premium registration-wizard">
-            <div className="wizard-header">
-              <h2>ADMISSION {regSubStep}/4</h2>
-              <div className="progress-track" style={{height: '4px', background: 'rgba(255,255,255,0.1)', marginTop: '8px', borderRadius: '4px'}}>
-                <div style={{width: `${regSubStep * 25}%`, height: '100%', background: 'var(--accent)', borderRadius: '4px', transition: 'width 0.3s ease'}}></div>
-              </div>
-            </div>
-            
-            <div className="mt-24">
-              {regSubStep === 1 && (
-                <div className="wizard-step">
-                  <input className="input-premium" placeholder="Full Candidate Name" value={authData.name} onChange={e => setAuthData({...authData, name: e.target.value})} />
-                  <input className="input-premium mt-12" style={{marginTop:'12px'}} placeholder="Email" value={authData.email} onChange={e => setAuthData({...authData, email: e.target.value})} />
-                  <button className="btn-login-premium w-full" onClick={() => setRegSubStep(2)}>Continue</button>
-                </div>
-              )}
-              {regSubStep === 2 && (
-                <div className="wizard-step">
-                  <select className="input-premium" style={{background: 'var(--surface-container-high)', color:'white'}} value={authData.program || ''} onChange={e => setAuthData({...authData, program: e.target.value})}>
-                    <option value="" disabled>Target Identification</option>
-                    <option value="BS Computer Science">Admission: BS Computer Science</option>
-                    <option value="BS Software Engineering">Admission: BS Software Engineering</option>
-                    <option value="BS Business Administration">Admission: BS Business Administration</option>
-                    <option value="Faculty Applicant">Staff: Faculty Applicant</option>
-                  </select>
-                  <input className="input-premium mt-12" style={{marginTop:'12px'}} placeholder="Previous Institute Name" value={authData.instName} onChange={e => setAuthData({...authData, instName: e.target.value})} />
-                  <div style={{display:'flex', gap:'12px', marginTop:'16px'}}>
-                    <button className="btn-icon-premium" style={{color:'white'}} onClick={() => setRegSubStep(1)}>Back</button>
-                    <button className="btn-login-premium" style={{flex:1}} onClick={() => setRegSubStep(3)}>Next</button>
-                  </div>
-                </div>
-              )}
-              {regSubStep === 3 && (
-                <div className="wizard-step">
-                  <div className="file-upload-zone" style={{border: '1px dashed var(--glass-border)', padding: '24px', borderRadius: '12px', textAlign: 'center'}}>
-                    <p style={{fontSize: '14px', color:'white', marginBottom:'12px'}}>Upload Matric/HSSC Certificates (PDF/JPG)</p>
-                    <input type="file" onChange={(e) => setAuthData({...authData, docFile: e.target.files[0]})} style={{fontSize: '12px', color: 'var(--text-dim)'}} />
-                  </div>
-                  <input className="input-premium mt-12" style={{marginTop:'12px'}} placeholder="Entrance Test Score (GAT/NAT)" value={authData.testScore} onChange={e => setAuthData({...authData, testScore: e.target.value})} />
-                  <div style={{display:'flex', gap:'12px', marginTop:'16px'}}>
-                    <button className="btn-icon-premium" style={{color:'white'}} onClick={() => setRegSubStep(2)}>Back</button>
-                    <button className="btn-login-premium" style={{flex:1}} onClick={() => setRegSubStep(4)}>Next</button>
-                  </div>
-                </div>
-              )}
-              {regSubStep === 4 && (
-                <div className="wizard-step">
-                  <input className="input-premium" placeholder="CNIC Number" value={authData.cnic} onChange={e => setAuthData({...authData, cnic: e.target.value})} />
-                  <input className="input-premium mt-12" style={{marginTop:'12px', marginBottom:'16px'}} placeholder="Create Password" type="password" value={authData.password} onChange={e => setAuthData({...authData, password: e.target.value})} />
-                  <button className="btn-login-premium w-full" onClick={handleRegister}>Finalize Admission</button>
-                </div>
-              )}
-            </div>
-            <button className="btn-icon-premium" style={{color: 'white', marginTop: '16px'}} onClick={() => setStep('choice')}>Abort Application</button>
-          </div>
-        )}
-        <div className="login-footer-premium" style={{marginTop:'auto', paddingTop:'32px', borderTop:'1px solid var(--glass-border)', textAlign:'center'}}>
-           <p style={{fontSize:'12px', opacity:0.5}}>Secure Gateway v2.4.0 (COMSATS Unit)</p>
-           <button 
-             className="btn-text-only" 
-             style={{fontSize:'11px', color:'var(--accent)', marginTop:'8px', cursor:'pointer'}} 
-             onClick={() => { if(confirm("This will clear local cache and reload. Proceed?")) { localStorage.clear(); window.location.reload(); } }}>
-             Troubleshoot: Reset Institutional Cache
-           </button>
+    <div className="login-page-container" style={{
+      display: 'flex',
+      minHeight: '100vh',
+      background: 'var(--color-bg)'
+    }}>
+      {/* Left Column: Branding */}
+      <div className="login-branding-col" style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: '64px',
+        borderRight: '2px solid var(--color-ink)',
+        background: 'var(--surface-container-high)',
+        backgroundImage: 'radial-gradient(var(--color-border) 1px, transparent 1px)',
+        backgroundSize: '30px 30px'
+      }}>
+        <img 
+          src="https://crystalpng.com/wp-content/uploads/2022/02/COMSATS-University-logo.png" 
+          alt="COMSATS" 
+          style={{ width: '120px', marginBottom: '32px' }} 
+        />
+        <h1 style={{ fontSize: '64px', lineHeight: 1, marginBottom: '24px' }}>CUI VEHARI</h1>
+        <p style={{ fontSize: '20px', maxWidth: '400px', opacity: 0.8, fontFamily: 'var(--font-body)' }}>
+          Institutional Access Gateway for the University Management System. Secure and centralized authentication for students, faculty, and administration.
+        </p>
+        <div style={{ marginTop: 'auto', fontSize: '12px', opacity: 0.5 }}>
+          © 2026 COMSATS University Islamabad, Vehari Campus.
         </div>
       </div>
+
+      {/* Right Column: Form */}
+      <div className="login-form-col" style={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '32px'
+      }}>
+        <div className="login-card-premium" style={{
+          width: '100%',
+          maxWidth: '450px',
+          padding: '48px',
+          background: 'white',
+          border: '1px solid var(--color-ink)',
+          boxShadow: 'var(--shadow)',
+          borderRadius: 'var(--radius)'
+        }}>
+          <h2 style={{ fontSize: '32px', marginBottom: '8px' }}>System Gateway</h2>
+          <p style={{ marginBottom: '32px', opacity: 0.6, fontSize: '14px' }}>Please authenticate using your institutional credentials.</p>
+
+          {loginStep === 'choice' && (
+            <div className="fade-in">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {['admin', 'student', 'faculty', 'finance'].map(role => (
+                  <button 
+                    key={role}
+                    style={{ padding: '16px', textTransform: 'uppercase', fontSize: '11px' }}
+                    onClick={() => setStep(role)}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-24" style={{ 
+                padding: '20px', 
+                background: 'var(--color-bg)', 
+                border: '1px solid var(--color-border)',
+                fontSize: '12px'
+              }}>
+                <p style={{ margin: '0 0 8px 0', fontWeight: 700, opacity: 0.5 }}>DEMO ACCESS KEYS</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <span>Admin: ADMIN/admin</span>
+                  <span>Student: S001/123</span>
+                  <span>Faculty: VHR-F-001/123</span>
+                  <span>Finance: FIN1/admin</span>
+                </div>
+              </div>
+              <p className="mt-24" style={{ textAlign: 'center', fontSize: '14px' }}>
+                New candidate? <span style={{ color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 700 }} onClick={() => setStep('register')}>Apply for Admission</span>
+              </p>
+            </div>
+          )}
+
+          {(['admin', 'student', 'faculty', 'finance', 'forgot'].includes(loginStep)) && (
+            <div className="fade-in">
+              <h3 style={{ fontSize: '18px', textTransform: 'uppercase', marginBottom: '24px', color: 'var(--color-accent)' }}>
+                {loginStep === 'forgot' ? 'Account Recovery' : `${loginStep} Authentication`}
+              </h3>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Identification</label>
+                  <input 
+                    autoFocus 
+                    placeholder="Institutional ID / Registration No" 
+                    value={authData.id} 
+                    onChange={e => setAuthData({...authData, id: e.target.value})} 
+                    onKeyDown={e => e.key === 'Enter' && loginStep !== 'forgot' && onLogin(ROLES[loginStep.toUpperCase()])}
+                  />
+                </div>
+                
+                {loginStep !== 'forgot' ? (
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Security Key</label>
+                    <input 
+                      type="password" 
+                      placeholder="••••••••" 
+                      value={authData.password} 
+                      onChange={e => setAuthData({...authData, password: e.target.value})} 
+                      onKeyDown={e => e.key === 'Enter' && onLogin(ROLES[loginStep.toUpperCase()])}
+                    />
+                    <div style={{ textAlign: 'right', marginTop: '8px' }}>
+                      <span style={{ fontSize: '12px', cursor: 'pointer', opacity: 0.6 }} onClick={() => setStep('forgot')}>Forgot Key?</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Security Token</label>
+                    <input placeholder="Enter last 4 digits of Phone" value={authData.securityToken || ''} onChange={e => setAuthData({...authData, securityToken: e.target.value})} />
+                  </div>
+                )}
+              </div>
+
+              <button 
+                style={isInvertedBtn}
+                onClick={() => {
+                  if (loginStep === 'forgot') {
+                    alert("Recovery protocol initiated. Check your primary email.");
+                    setStep('choice');
+                  } else {
+                    onLogin(ROLES[loginStep.toUpperCase()]);
+                  }
+                }}
+              >
+                {loginStep === 'forgot' ? 'Initiate Recovery' : 'Authorize Access'}
+              </button>
+              
+              <button 
+                className="btn-text-only" 
+                style={{ width: '100%', marginTop: '16px', color: 'var(--color-ink)' }} 
+                onClick={() => setStep('choice')}
+              >
+                ← Return to Choice
+              </button>
+            </div>
+          )}
+
+          {loginStep === 'register' && (
+            <div className="fade-in">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h3 style={{ margin: 0 }}>Admission {regSubStep}/4</h3>
+                <span style={{ fontSize: '12px', opacity: 0.5 }}>Step {regSubStep} of 4</span>
+              </div>
+              
+              <div style={{ height: '2px', background: 'var(--color-border)', marginBottom: '32px' }}>
+                <div style={{ width: `${regSubStep * 25}%`, height: '100%', background: 'var(--color-accent)', transition: 'width 0.3s ease' }}></div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {regSubStep === 1 && (
+                  <>
+                    <input placeholder="Full Candidate Name" value={authData.name} onChange={e => setAuthData({...authData, name: e.target.value})} />
+                    <input placeholder="Official Email Address" value={authData.email} onChange={e => setAuthData({...authData, email: e.target.value})} />
+                    <button style={isInvertedBtn} onClick={() => setRegSubStep(2)}>Continue</button>
+                  </>
+                )}
+                {regSubStep === 2 && (
+                  <>
+                    <select value={authData.program || ''} onChange={e => setAuthData({...authData, program: e.target.value})}>
+                      <option value="" disabled>Select Academic Program</option>
+                      <option value="BS Computer Science">BS Computer Science</option>
+                      <option value="BS Software Engineering">BS Software Engineering</option>
+                      <option value="BS Business Administration">BS Business Administration</option>
+                    </select>
+                    <input placeholder="Previous Institute Name" value={authData.instName} onChange={e => setAuthData({...authData, instName: e.target.value})} />
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button className="btn-text-only" style={{ flex: 1 }} onClick={() => setRegSubStep(1)}>Back</button>
+                      <button style={{ ...isInvertedBtn, flex: 2, marginTop: 0 }} onClick={() => setRegSubStep(3)}>Next</button>
+                    </div>
+                  </>
+                )}
+                {regSubStep === 3 && (
+                  <>
+                    <div style={{ border: '2px dashed var(--color-border)', padding: '32px', textAlign: 'center' }}>
+                      <p style={{ margin: 0, fontSize: '13px' }}>Upload Academic Certificates</p>
+                      <input type="file" style={{ fontSize: '11px', marginTop: '12px' }} />
+                    </div>
+                    <input placeholder="Entrance Test Score (NTS/GAT)" value={authData.testScore} onChange={e => setAuthData({...authData, testScore: e.target.value})} />
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button className="btn-text-only" style={{ flex: 1 }} onClick={() => setRegSubStep(2)}>Back</button>
+                      <button style={{ ...isInvertedBtn, flex: 2, marginTop: 0 }} onClick={() => setRegSubStep(4)}>Next</button>
+                    </div>
+                  </>
+                )}
+                {regSubStep === 4 && (
+                  <>
+                    <input placeholder="CNIC / Identity Number" value={authData.cnic} onChange={e => setAuthData({...authData, cnic: e.target.value})} />
+                    <input type="password" placeholder="Create Account Password" value={authData.password} onChange={e => setAuthData({...authData, password: e.target.value})} />
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button className="btn-text-only" style={{ flex: 1 }} onClick={() => setRegSubStep(3)}>Back</button>
+                      <button style={{ ...isInvertedBtn, flex: 2, marginTop: 0 }} onClick={handleRegister}>Finalize Application</button>
+                    </div>
+                  </>
+                )}
+              </div>
+              <button className="btn-text-only" style={{ width: '100%', marginTop: '16px' }} onClick={() => setStep('choice')}>Abort Application</button>
+            </div>
+          )}
+
+          <div style={{ marginTop: '48px', paddingTop: '24px', borderTop: '1px solid var(--color-border)', textAlign: 'center' }}>
+             <button 
+               className="btn-text-only" 
+               style={{ fontSize: '11px', opacity: 0.5 }} 
+               onClick={() => { if(confirm("Clear system cache?")) { localStorage.clear(); window.location.reload(); } }}
+             >
+                institutional cache reset v2.4.0
+             </button>
+          </div>
+        </div>
+      </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 900px) {
+          .login-branding-col { display: none !important; }
+          .login-form-col { flex: 1 !important; background: var(--surface-container-high) !important; }
+        }
+      `}} />
     </div>
   );
 };
 
 export default Login;
-

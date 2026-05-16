@@ -33,51 +33,56 @@ const AcademicResults = ({ results, user, courses }) => {
       </div>
 
       <div className="telemetry-grid mt-24 mb-32" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'20px'}}>
-          <div className="glass-card telemetry-card text-center" style={{padding:'24px'}}>
-              <span style={{fontSize:'12px', opacity:0.6, textTransform:'uppercase'}}>Current Semester GPA</span>
-              <h2 style={{fontSize:'42px', color:'var(--accent)', margin:'8px 0'}}>{avgGPA}</h2>
+          <div className="card text-center" style={{padding:'24px'}}>
+              <span style={{fontSize:'12px', fontWeight:700, opacity:0.6, textTransform:'uppercase'}}>Current Semester GPA</span>
+              <h2 style={{fontSize:'48px', color:'var(--color-accent)', margin:'8px 0'}}>{avgGPA}</h2>
               <span className="badge-premium badge-primary">Level: {avgGPA > 3.5 ? 'Excellent' : 'Stable'}</span>
           </div>
-          <div className="glass-card telemetry-card text-center" style={{padding:'24px'}}>
-              <span style={{fontSize:'12px', opacity:0.6, textTransform:'uppercase'}}>Credits Completed</span>
-              <h2 style={{fontSize:'42px', color:'var(--text-main)', margin:'8px 0'}}>{myResults.length * 3}</h2>
-              <span className="badge-premium" style={{background:'var(--surface-container-high)', color:'var(--text-main)'}}>Total Required: 136</span>
+          <div className="card text-center" style={{padding:'24px'}}>
+              <span style={{fontSize:'12px', fontWeight:700, opacity:0.6, textTransform:'uppercase'}}>Credits Completed</span>
+              <h2 style={{fontSize:'48px', color:'var(--color-ink)', margin:'8px 0'}}>{myResults.length * 3}</h2>
+              <span className="badge-premium" style={{background:'var(--surface-container-high)', color:'var(--color-ink)'}}>Total Required: 136</span>
           </div>
       </div>
 
-      <div className="table-card-premium glass-card">
-        <div className="table-responsive">
-          <table className="premium-table">
-            <thead>
-              <tr>
-                <th>Course Mapping</th>
-                <th>Credit Logic</th>
-                <th>Academic Grade</th>
-                <th>GPA Point</th>
-              </tr>
-            </thead>
-            <tbody>
-              {myResults.map(r => {
-                  const course = courses.find(c => c.courseID === r.courseID);
-                  return (
-                    <tr key={r.resultID}>
-                      <td>
-                        <div style={{display:'flex', flexDirection:'column'}}>
-                          <span className="user-name-cell">{course?.courseName || 'Institutional Subject'}</span>
-                          <span className="font-monospace" style={{fontSize:'11px', opacity:0.6}}>{r.courseID}</span>
-                        </div>
-                      </td>
-                      <td>3 Credits</td>
-                      <td>
-                        <span className={`badge-premium ${r.grade.startsWith('A') ? 'badge-primary' : 'badge-gold'}`}>{r.grade}</span>
-                      </td>
-                      <td className="font-monospace" style={{fontWeight:700}}>{r.GPA}</td>
-                    </tr>
-                  );
-              })}
-            </tbody>
-          </table>
-        </div>
+      <div className="table-wrapper card">
+        <table className="premium-table min-w-table">
+          <thead>
+            <tr>
+              <th>Course Mapping</th>
+              <th>Credit Logic</th>
+              <th>Academic Grade</th>
+              <th>GPA Point</th>
+            </tr>
+          </thead>
+          <tbody>
+            {myResults.map(r => {
+                const course = courses.find(c => c.courseID === r.courseID);
+                return (
+                  <tr key={r.resultID}>
+                    <td>
+                      <div style={{display:'flex', flexDirection:'column'}}>
+                        <span style={{fontWeight:600}}>{course?.courseName || 'Institutional Subject'}</span>
+                        <span className="font-monospace" style={{fontSize:'11px', opacity:0.6}}>{r.courseID}</span>
+                      </div>
+                    </td>
+                    <td>3 Credits</td>
+                    <td>
+                      <span className={`badge-premium ${r.grade.startsWith('A') ? 'badge-primary' : 'badge-gold'}`}>{r.grade}</span>
+                    </td>
+                    <td className="font-monospace" style={{fontWeight:700}}>{r.GPA}</td>
+                  </tr>
+                );
+            })}
+          </tbody>
+        </table>
+        {myResults.length === 0 && (
+          <div className="empty-state">
+            <div className="empty-state-icon">📄</div>
+            <h2>No Transcripts Issued</h2>
+            <p>Your academic results for the current cycle have not yet been finalized in the institutional registry.</p>
+          </div>
+        )}
       </div>
     </div>
   );

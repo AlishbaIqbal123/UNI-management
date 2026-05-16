@@ -26,14 +26,14 @@ const AdminOverrideManagement = ({ students, adminOverrides, setAdminOverrides, 
         </div>
       </div>
 
-      <div className="table-card-premium glass-card">
-        <table className="premium-table">
+      <div className="table-wrapper card">
+        <table className="premium-table min-w-table">
           <thead>
             <tr>
-              <th>Student</th>
-              <th>Status</th>
-              <th>Reason</th>
-              <th className="text-right">Action</th>
+              <th>Candidate Info</th>
+              <th>Status Profile</th>
+              <th>Justification</th>
+              <th className="text-right">Administrative Action</th>
             </tr>
           </thead>
           <tbody>
@@ -42,24 +42,24 @@ const AdminOverrideManagement = ({ students, adminOverrides, setAdminOverrides, 
                return (
                  <tr key={s.id}>
                    <td>
-                     <div className="user-info-cell">
-                       <span className="user-name-cell">{s.name}</span>
+                     <div style={{display:'flex', flexDirection:'column'}}>
+                       <span style={{fontWeight:600}}>{s.name}</span>
                        <span className="font-monospace" style={{fontSize:'10px', opacity:0.6}}>{s.id}</span>
                      </div>
                    </td>
                    <td>
                      {override ? (
-                       <span className="badge-premium badge-primary">🔓 Override Active</span>
+                       <span className="badge-premium badge-primary">🔓 OVERRIDE ACTIVE</span>
                      ) : (
-                       <span className="badge-premium" style={{opacity:0.5}}>No Override</span>
+                       <span className="badge-premium" style={{opacity:0.5}}>STANDARD ACCESS</span>
                      )}
                    </td>
                    <td><span style={{fontSize:'13px', opacity:0.7}}>{override?.reason || '—'}</span></td>
                    <td className="text-right">
                      {override ? (
-                       <button className="btn-text-only" style={{color:'#ef4444'}} onClick={() => handleRevoke(s.id)}>Revoke</button>
+                       <button className="btn-text-only" style={{color:'var(--color-danger)', fontWeight:700}} onClick={() => handleRevoke(s.id)}>REVOKE</button>
                      ) : (
-                       <button className="btn-primary-premium" style={{padding:'6px 14px', fontSize:'11px'}} onClick={() => handleGrantOverride(s.id)}>Grant Access</button>
+                       <button className="btn-primary-premium" style={{padding:'6px 14px', fontSize:'11px', background:'var(--color-ink)', color:'var(--color-bg)'}} onClick={() => handleGrantOverride(s.id)}>GRANT ACCESS</button>
                      )}
                    </td>
                  </tr>

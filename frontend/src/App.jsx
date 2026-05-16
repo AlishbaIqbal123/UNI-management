@@ -5,6 +5,10 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import StudentManagement from './components/StudentManagement';
 import FacultyManagement from './components/FacultyManagement';
+import EnrollmentManagement from './components/EnrollmentManagement';
+import ExamManagement from './components/ExamManagement';
+import StudentMarksView from './components/StudentMarksView';
+import NoticeManagement from './components/NoticeManagement';
 import DepartmentManagement from './components/DepartmentManagement';
 import CourseManagement from './components/CourseManagement';
 import FinanceManagement from './components/FinanceManagement';
@@ -75,7 +79,8 @@ function App() {
     courses, setCourses, enrolments, setEnrolments, results, setResults, 
     finance, setFinance, attendance, setAttendance, notices, setNotices,
     adminOverrides, setAdminOverrides, assessments, setAssessments, marks, setMarks,
-    exams, setExams,
+    exams, setExams, feePayments, setFeePayments,
+    timetableUploads, setTimetableUploads, timetableEntries, setTimetableEntries,
     loading
   } = useUMSData();
 
@@ -488,11 +493,14 @@ function App() {
       
       case 'catalog': return <CourseManagement courses={courses} setCourses={setCourses} faculty={faculty} enrolments={enrolments} user={user} openForm={openForm} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
       
-      case 'finance': return <FinanceManagement finance={finance} user={user} students={students} setFinance={setFinance} openForm={openForm} />;
-      case 'my-finance': return <FinanceManagement finance={finance} user={user} students={students} setFinance={setFinance} openForm={openForm} />;
+      case 'finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} />;
+      case 'my-finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} />;
 
       case 'overrides':
         return <AdminOverrideManagement students={students} adminOverrides={adminOverrides} setAdminOverrides={setAdminOverrides} notify={notify} />;
+      
+      case 'timetable':
+        return <TimetableManagement uploads={timetableUploads} setUploads={setTimetableUploads} setEntries={setTimetableEntries} />;
 
       case 'registration': 
         return <CourseRegistration courses={courses} enrolments={enrolments} setEnrolments={setEnrolments} user={user} results={results} notify={notify} finance={finance} adminOverrides={adminOverrides} />;
@@ -533,7 +541,10 @@ function App() {
         );
 
       case 'academic-progress':
-        return <StudentAcademicView user={user} enrolments={enrolments} attendance={attendance} assessments={assessments} marks={marks} courses={courses} />;
+        return <StudentAcademicView user={user} enrolments={enrolments} attendance={attendance} assessments={assessments} marks={marks} courses={courses} sessions={sessions} sessionAttendance={sessionAttendance} />;
+      
+      case 'my-results':
+        return <StudentMarksView user={user} enrolments={enrolments} assessments={assessments} marks={marks} courses={courses} />;
 
 
       case 'results':
@@ -573,9 +584,9 @@ function App() {
       
 
       case 'classes':
-        return <FacultyWorkspace user={user} students={students} courses={courses} results={results} setResults={setResults} attendance={attendance} setAttendance={setAttendance} assessments={assessments} setAssessments={setAssessments} marks={marks} setMarks={setMarks} enrolments={enrolments} notify={notify} initialTab="classes" />;
+        return <FacultyWorkspace user={user} students={students} courses={courses} results={results} setResults={setResults} attendance={attendance} setAttendance={setAttendance} sessions={sessions} setSessions={setSessions} sessionAttendance={sessionAttendance} setSessionAttendance={setSessionAttendance} assessments={assessments} setAssessments={setAssessments} marks={marks} setMarks={setMarks} enrolments={enrolments} notify={notify} initialTab="attendance" />;
       case 'grading':
-        return <FacultyWorkspace user={user} students={students} courses={courses} results={results} setResults={setResults} attendance={attendance} setAttendance={setAttendance} assessments={assessments} setAssessments={setAssessments} marks={marks} setMarks={setMarks} enrolments={enrolments} notify={notify} initialTab="assessments" />;
+        return <ExamManagement user={user} students={students} courses={courses} departments={departments} assessments={assessments} setAssessments={setAssessments} marks={marks} setMarks={setMarks} enrolments={enrolments} notify={notify} />;
 
       case 'notices_mgt':
 
@@ -598,10 +609,21 @@ function App() {
             </div>
           </div>
         );
+      case 'my-timetable':
+        const studentBatch = user.batch || (students.find(s => s.id === user.id || s.dbID === user.id)?.batch);
+        const myStudentEntries = timetableEntries.filter(e => e.owner_label === studentBatch || e.owner_label.includes(studentBatch || ''));
+        if (timetableUploads.length === 0) return <div className="p-40 text-center"><h2 style={{opacity:0.5}}>Timetable not yet published by admin</h2></div>;
+        return <TimetableGrid entries={myStudentEntries} title={`My Timetable (${studentBatch || 'General'})`} />;
+
       case 'enrolments': 
         return <EnrollmentManagement enrolments={enrolments} setEnrolments={setEnrolments} students={students} courses={courses} notify={notify} />;
 
-      case 'finance': return <FinanceManagement finance={finance} user={user} students={students} setFinance={setFinance} openForm={openForm} />;
+      case 'finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} />;
+      
+      case 'faculty-timetable':
+        const myTeacherEntries = timetableEntries.filter(e => e.owner_label === user.facultyName || e.owner_label.includes(user.facultyName || ''));
+        if (timetableUploads.length === 0) return <div className="p-40 text-center"><h2 style={{opacity:0.5}}>Timetable not yet published by admin</h2></div>;
+        return <TimetableGrid entries={myTeacherEntries} title={`Faculty Timetable — ${user.facultyName}`} />;
       
       case 'overrides': return <AdminOverrideManagement adminOverrides={adminOverrides} setAdminOverrides={setAdminOverrides} students={students} notify={notify} />;
 
@@ -631,8 +653,8 @@ function App() {
           </div>
         );
 
-      case 'classes': return <FacultyWorkspace user={user} students={students} courses={courses} enrolments={enrolments} results={results} setResults={setResults} attendance={attendance} setAttendance={setAttendance} assessments={assessments} setAssessments={setAssessments} marks={marks} setMarks={setMarks} notify={notify} initialTab="classes" />;
-      case 'grading': return <FacultyWorkspace user={user} students={students} courses={courses} enrolments={enrolments} results={results} setResults={setResults} attendance={attendance} setAttendance={setAttendance} assessments={assessments} setAssessments={setAssessments} marks={marks} setMarks={setMarks} notify={notify} initialTab="assessments" />;
+      case 'classes': return <FacultyWorkspace user={user} students={students} courses={courses} enrolments={enrolments} results={results} setResults={setResults} attendance={attendance} setAttendance={setAttendance} sessions={sessions} setSessions={setSessions} sessionAttendance={sessionAttendance} setSessionAttendance={setSessionAttendance} assessments={assessments} setAssessments={setAssessments} marks={marks} setMarks={setMarks} notify={notify} initialTab="attendance" />;
+      case 'grading': return <ExamManagement user={user} students={students} courses={courses} departments={departments} assessments={assessments} setAssessments={setAssessments} marks={marks} setMarks={setMarks} enrolments={enrolments} notify={notify} />;
 
       case 'importer':
         return (
@@ -804,14 +826,14 @@ function App() {
       case 'course_roster':
         return (
           <div style={{textAlign:'left', display:'flex', flexDirection:'column', height:'100%'}}>
-             <h3 style={{color:'var(--accent)', margin:0, marginBottom:'16px'}}>{data?.courseID}: {data?.courseName}</h3>
-             <div className="notices-scroll-area" style={{maxHeight:'300px', overflowY:'auto'}}>
+             <h3 style={{color:'var(--color-ink)', margin:0, marginBottom:'16px', fontWeight:800}}>{data?.courseID}: {data?.courseName}</h3>
+             <div className="table-wrapper" style={{maxHeight:'300px', overflowY:'auto'}}>
                 {enrolments.filter(e => e.courseID === data?.courseID).length > 0 ? (
                   enrolments.filter(e => e.courseID === data?.courseID).map(e => {
                     const student = students.find(s => s.dbID === e.studentID || s.id === e.studentID);
-                    return (<div key={e.registrationID} className="notice-item-premium" style={{padding:'12px', marginBottom:'8px', background:'rgba(255,255,255,0.03)'}}>{student?.name || 'Unknown'} — {student?.regNumber || e.studentID}</div>);
+                    return (<div key={e.registrationID} style={{padding:'12px', marginBottom:'8px', background:'var(--color-bg-dim)', border:'1px solid var(--color-border)', borderRadius:'var(--radius)', fontSize:'13px', fontWeight:600, color:'var(--color-ink)'}}>{student?.name || 'Unknown'} — {student?.regNumber || e.studentID}</div>);
                   })
-                ) : (<p style={{opacity:0.4}}>No candidates registered.</p>)}
+                ) : (<p style={{opacity:0.4, textAlign:'center', padding:'20px'}}>No candidates registered.</p>)}
              </div>
           </div>
         );
@@ -819,12 +841,13 @@ function App() {
         return (
           <div style={{padding:'20px', textAlign:'center'}}>
             <div className="fade-in">
-              <span className="badge-premium badge-primary">OFFICIAL ADMIT CARD</span>
-              <h3 style={{marginTop:'20px', color:'white'}}>{data.name}</h3>
-              <p style={{opacity:0.6}}>{data.regNumber}</p>
-              <div style={{marginTop:'24px', padding:'16px', background:'rgba(255,255,255,0.03)', borderRadius:'12px'}}>
-                  <p><strong>Tracking ID:</strong> {data.id}</p>
-                  <p><strong>Test Date:</strong> {data.testDate}</p>
+              <span className="badge-premium badge-primary" style={{fontSize:'12px', letterSpacing:'2px'}}>OFFICIAL ADMIT CARD</span>
+              <h2 style={{marginTop:'24px', fontSize:'32px', color:'var(--color-ink)'}}>{data.name}</h2>
+              <p className="font-monospace" style={{opacity:0.6, fontSize:'16px', fontWeight:700}}>{data.regNumber}</p>
+              <div style={{marginTop:'32px', padding:'24px', background:'var(--color-bg-dim)', border:'2px dashed var(--color-border)', borderRadius:'var(--radius)'}}>
+                  <p style={{margin:'8px 0', fontSize:'14px'}}><strong>Institutional ID:</strong> <span className="font-monospace">{data.id}</span></p>
+                  <p style={{margin:'8px 0', fontSize:'14px'}}><strong>Assessment Date:</strong> <span className="font-monospace">{data.testDate}</span></p>
+                  <p style={{margin:'8px 0', fontSize:'14px'}}><strong>Assigned Campus:</strong> {data.campus}</p>
               </div>
             </div>
           </div>
@@ -911,45 +934,45 @@ function App() {
 
       {/* Dynamic Modal Overlay */}
       {isModalOpen && (
-
         <div className="modal-overlay-premium" onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}>
-           <div className="modal-card-premium glass-card fade-in">
-            <h2>{modalCtx.type === 'admit_card_generated' ? 'Candidate Admit Card' : (modalCtx.data ? 'Modify' : 'Execute')} {modalCtx.type !== 'admit_card_generated' && modalCtx.type.replace('_',' ')}</h2>
-            <div className="form-grid-premium mt-24" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+           <div className="card modal-card-premium fade-in" style={{minWidth:'450px'}}>
+            <h2 style={{fontSize:'28px', borderBottom:'1px solid var(--color-border)', paddingBottom:'16px', marginBottom:'0'}}>
+              {modalCtx.type === 'admit_card_generated' ? 'CANDIDATE ADMIT CARD' : (modalCtx.data ? 'REVISE' : 'INITIALIZE')} {modalCtx.type !== 'admit_card_generated' && modalCtx.type.replace('_',' ').toUpperCase()}
+            </h2>
+            <div className="mt-24">
                 {renderModalBody()}
             </div>
-
                   
-                  <div className="modal-footer-premium" style={{display:'flex', gap:'12px', borderTop:'1px solid var(--glass-border)', paddingTop:'16px'}}>
-                     {modalCtx.type === 'admit_card_generated' ? (
-                       <>
-                         <button className="btn-primary-premium" style={{width:'100%'}} onClick={() => window.print()}>Print Admit Card</button>
-                         <button className="btn-text-only" style={{width:'100%', color:'white'}} onClick={() => setIsModalOpen(false)}>Continue</button>
-                       </>
-                     ) : modalCtx.type === 'notice_detail' ? (
-                       <button className="btn-primary-premium" style={{width:'100%'}} onClick={() => setIsModalOpen(false)}>Acknowledge Notice</button>
-                     ) : (
-                       <>
-                         <button className="btn-text-only" style={{flex:1}} onClick={() => setIsModalOpen(false)}>Cancel</button>
-                         <button className="btn-primary-premium" style={{flex:1}} onClick={handleSave}>Confirm Transaction</button>
-                       </>
-                     )}
-                   </div>
-                 </div>
+            <div className="modal-footer-premium" style={{display:'flex', gap:'12px', borderTop:'1px solid var(--color-border)', paddingTop:'24px', marginTop:'24px'}}>
+               {modalCtx.type === 'admit_card_generated' ? (
+                 <>
+                   <button className="btn-primary-premium" style={{flex:1}} onClick={() => window.print()}>PRINT RECORD</button>
+                   <button className="btn-text-only" style={{flex:1, color:'var(--color-ink)', fontWeight:700}} onClick={() => setIsModalOpen(false)}>CONTINUE TO PORTAL</button>
+                 </>
+               ) : modalCtx.type === 'notice_detail' ? (
+                 <button className="btn-primary-premium" style={{width:'100%'}} onClick={() => setIsModalOpen(false)}>ACKNOWLEDGE BROADCAST</button>
+               ) : (
+                 <>
+                   <button className="btn-text-only" style={{flex:1, fontWeight:700, color:'var(--color-ink)'}} onClick={() => setIsModalOpen(false)}>ABORT</button>
+                   <button className="btn-primary-premium" style={{flex:1}} onClick={handleSave}>CONFIRM CHANGES</button>
+                 </>
+               )}
              </div>
-       )}
-
-
-
+           </div>
+        </div>
+      )}
 
       {deleteConfirm.open && (
-        <div className="modal-overlay-premium"><div className="modal-card-premium glass-card danger-zone">
-          <h2>Expunge {deleteConfirm.typeName}?</h2>
-          <div style={{display:'flex', gap:'12px', marginTop:'24px'}}>
-            <button className="btn-icon-premium" onClick={() => setDeleteConfirm({open:false})}>Cancel</button>
-            <button className="btn-primary-premium" style={{background:'#ef4444', flex:1}} onClick={executeDelete}>Confirm Deletion</button>
+        <div className="modal-overlay-premium">
+          <div className="card fade-in" style={{width: '400px', border: '2px solid var(--color-danger)'}}>
+            <h2 style={{color:'var(--color-danger)', fontSize:'24px'}}>Expunge {deleteConfirm.typeName}?</h2>
+            <p style={{fontSize:'14px', opacity:0.7, margin:'12px 0 24px 0'}}>This action is permanent and will remove the record from the institutional registry.</p>
+            <div style={{display:'flex', gap:'12px'}}>
+              <button className="btn-text-only" style={{flex:1, fontWeight:700}} onClick={() => setDeleteConfirm({open:false})}>CANCEL</button>
+              <button className="btn-primary-premium" style={{background:'var(--color-danger)', border:'none', flex:1}} onClick={executeDelete}>CONFIRM DELETION</button>
+            </div>
           </div>
-        </div></div>
+        </div>
       )}
       {/* Institutional Notifications Overlay */}
       <div className="notifications-container-premium">
