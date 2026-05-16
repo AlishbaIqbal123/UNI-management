@@ -22,33 +22,26 @@
 | Sidebar.jsx | Primary navigation component with role-based visibility of modules. |
 | StudentAcademicView.jsx | Detailed academic progress view for students, including attendance and marks. |
 | StudentManagement.jsx | Central registry for student records and bulk CSV importing. |
+| StudentMarksView.jsx | Specialized view for student assessment results and transcript previews. |
+| TimetableGrid.jsx | Visual grid component for displaying weekly academic schedules. |
+| TimetableManagement.jsx | Administrative tool for uploading and managing university-wide timetables. |
 
-### Current Color Variables
-The codebase currently uses two sets of variables in index.css and App.css:
+### Current Color Variables (Design System)
+The codebase has been unified under the "Sketchy Academic" design system in `frontend/src/styles/design-system.css`:
+- --color-bg: #fdfbf7 (Parchment)
+- --color-ink: #1a1a1a (Deep Charcoal)
+- --color-accent: #4a6785 (Muted Academic Blue)
+- --color-border: #d1ccc0 (Aged Paper Border)
+- --color-danger: #a63d40 (Alert Red)
+- --font-heading: 'Instrument Serif', serif
+- --font-body: 'Inter', sans-serif
 
-From index.css (Default Dark):
-- --primary: #573273
-- --primary-light: #7c4dff
-- --accent: #ffb74d
-- --success: #10b981
-- --surface: #1e1e1e
-- --surface-container: #313131
-- --surface-container-high: #3d3d3d
-- --text-main: #ffffff
-- --text-dim: #b0b0b0
-- --glass-bg: rgba(49, 49, 49, 0.7)
-
-From App.css (Redundant):
-- --primary: #6366f1
-- --bg-main: #020617
-- --text-main: #f8fafc
-
-### Identified Design Inconsistencies
-1. Redundant Styles: Both index.css and App.css define global variables and base styles, leading to conflicting color schemes (Purple vs Indigo).
-2. Glassmorphism Overuse: Multiple components rely on backdrop-filter: blur(), which can be inconsistent across browsers and heavy on performance.
-3. Typography Inconsistency: index.css uses 'Montserrat', while App.css uses 'Outfit'.
-4. Section Contrast: Some "premium" sections use very dark backgrounds with low-contrast borders (--glass-border), while others use solid surface colors.
-5. Border Radii: Mixed use of 16px, 12px, 14px, and 28px for cards and inputs.
+### Identified Design Inconsistencies (FIXED)
+1. Redundant Styles: Conflicting variables in index.css and App.css have been superseded by design-system.css.
+2. Glassmorphism: Backdrop-filters and translucent backgrounds have been replaced with solid parchment cards.
+3. Typography: Unified across the platform using Google Fonts (Instrument Serif & Inter).
+4. Section Contrast: Standardized using high-contrast borders and system shadows.
+5. Border Radii: Standardized to 3px across all components.
 
 ### Existing Supabase Tables
 | Table | Columns |
@@ -64,7 +57,13 @@ From App.css (Redundant):
 | financials | uuid (UUID, PK), student_id, amount_due, amount_paid, fee_type, due_date, transaction_date |
 | results | uuid (UUID, PK), enrollment_uuid, grade, gpa, published |
 | notices | uuid (UUID, PK), title, content, author_id, created_at |
+| assessments | id (UUID, PK), course_id, section, department, type, title, total_marks, conducted_date, created_by |
+| marks | id (UUID, PK), assessment_id, student_id, obtained_marks, remarks |
+| sessions | id (UUID, PK), course_id, section, session_type, session_date, topic |
+| attendance | id (UUID, PK), session_id, student_id, status |
+| timetable_entries | id (UUID, PK), type, day, time_slot, subject, room, teacher, batch, section |
+| fee_payments | id (UUID, PK), student_id, amount, date, reference, semester |
 -->
 
 # Audit Complete
-The audit of the UNI-management repository is complete. The design system will now be unified under a "Sketchy Academic" aesthetic.
+The audit of the UNI-management repository is complete. The design system is fully unified under the "Sketchy Academic" aesthetic.

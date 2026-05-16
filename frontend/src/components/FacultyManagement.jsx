@@ -15,28 +15,28 @@ const FacultyManagement = ({ faculty, openForm, handleDelete, setFaculty }) => {
   );
 
   return (
-    <div className="view-container fade-in">
-      <div className="view-header-premium">
+    <div className="view-container">
+      <div className="page-header" style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
         <div>
           <h1>Faculty Registry</h1>
-          <p>Official records of teaching and administrative staff.</p>
+          <p className="page-subtitle">Official records of teaching and administrative staff.</p>
         </div>
         <div style={{display:'flex', gap:'12px'}}>
-          <button className="btn-text-only" onClick={() => generateInstitutionalReport('Faculty Registry', ['ID', 'FacultyName', 'Designation', 'Email'], faculty)} style={{color:'var(--color-ink)', background:'var(--color-bg-dim)', border:'1px solid var(--color-ink)'}}>
+          <button className="btn-outline" onClick={() => generateInstitutionalReport('Faculty Registry', ['ID', 'FacultyName', 'Designation', 'Email'], faculty)}>
              📄 STAFF REPORT
           </button>
-          <button className="btn-primary-premium" onClick={() => openForm('faculty')}>
+          <button className="btn-primary" onClick={() => openForm('faculty')}>
             + ADD FACULTY MEMBER
           </button>
         </div>
       </div>
 
-      <div className="card mb-24" style={{padding:'8px 16px', display:'flex', alignItems:'center', gap:'12px', background:'var(--color-bg)'}}>
-         <span style={{opacity:0.6, fontWeight:700, fontSize:'12px'}}>SEARCH STAFF:</span>
+      <div className="card" style={{padding:'16px 20px', display:'flex', alignItems:'center', gap:'16px', marginBottom: '24px'}}>
+         <span className="hint" style={{fontWeight:700, whiteSpace:'nowrap'}}>SEARCH REGISTRY:</span>
          <input 
-            className="input-premium" 
-            placeholder="Search by Name or Staff ID..." 
-            style={{flex:1, border:'none', background:'transparent'}} 
+            placeholder="Search by faculty name or employee ID number..." 
+            className="input-transparent-premium"
+            style={{flex:1, border:'none', background:'transparent', outline:'none', fontSize:'14px'}} 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
          />
@@ -57,31 +57,31 @@ const FacultyManagement = ({ faculty, openForm, handleDelete, setFaculty }) => {
           <tbody>
             {filteredFaculty.map(f => (
               <tr key={f.id} onClick={() => openForm('faculty', f)} style={{cursor:'pointer'}}>
-                <td className="font-monospace" style={{opacity:0.6}}>#{f.id}</td>
-                <td>
+                <td data-label="ID" className="font-monospace" style={{opacity:0.6}}>#{f.id}</td>
+                <td data-label="Staff Member">
                   <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
                     <div style={{width:'32px', height:'32px', borderRadius:'var(--radius)', background:'var(--color-ink)', color:'var(--color-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700}}>{(f.facultyName || 'F').charAt(0)}</div>
                     <span style={{fontWeight:600}}>{f.facultyName || 'Academic Staff'}</span>
                   </div>
                 </td>
-                <td>
+                <td data-label="Designation">
                   <span className="badge-premium badge-gold" style={{textTransform:'uppercase', fontWeight:800}}>
                     {f.designation}
                   </span>
                 </td>
-                <td>
+                <td data-label="Institutional Contact">
                   <div style={{display:'flex', flexDirection:'column'}}>
                     <span style={{fontSize:'12px', fontWeight:600, color:'var(--color-ink)'}}>{f.email}</span>
                     <span className="font-monospace" style={{fontSize:'10px', opacity:0.6}}>EXT: {f.id.split('-').pop()}</span>
                   </div>
                 </td>
-                <td>
+                <td data-label="Personal Record">
                   <div style={{display:'flex', flexDirection:'column'}}>
                     <span style={{fontSize:'11px', opacity:0.8}}>{f.personalEmail || 'NO RECORD'}</span>
                     <span style={{fontSize:'11px', fontWeight:700, color:'var(--color-accent)'}}>{f.phone || 'N/A'}</span>
                   </div>
                 </td>
-                <td className="text-right">
+                <td data-label="Actions" className="text-right">
                   <div style={{display:'flex', gap:'8px', justifyContent:'flex-end'}}>
                     <button className="btn-icon-premium" onClick={(e) => { e.stopPropagation(); openForm('faculty', f); }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>

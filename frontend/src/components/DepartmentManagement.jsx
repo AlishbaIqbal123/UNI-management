@@ -26,15 +26,15 @@ const DepartmentManagement = ({ departments, faculty, openForm }) => {
           <tbody>
             {departments.map(d => (
               <tr key={d.departmentID}>
-                <td className="font-monospace" style={{fontWeight:700}}>#{d.departmentID}</td>
-                <td><span style={{fontWeight:600}}>{d.departmentName}</span></td>
-                <td>
+                <td data-label="Identifier" className="font-monospace" style={{fontWeight:700}}>#{d.departmentID}</td>
+                <td data-label="Institutional Name"><span style={{fontWeight:600}}>{d.departmentName}</span></td>
+                <td data-label="Head of Department">
                   <div style={{display:'flex', flexDirection:'column'}}>
                       <span className="badge-premium badge-primary" style={{alignSelf:'flex-start'}}>{d.headOfDepartment}</span>
                       <span style={{fontSize:'10px', opacity:0.6, fontWeight:700, marginTop:'4px'}}>TENURED LEADERSHIP</span>
                   </div>
                 </td>
-                <td className="text-right">
+                <td data-label="Administrative" className="text-right">
                     <button className="btn-text-only" style={{color:'var(--color-accent)', fontSize:'12px', fontWeight:700}} onClick={() => openForm('assign_hod', d)}>
                       APPOINT HEAD
                     </button>

@@ -12,17 +12,14 @@ import NoticeManagement from './components/NoticeManagement';
 import DepartmentManagement from './components/DepartmentManagement';
 import CourseManagement from './components/CourseManagement';
 import FinanceManagement from './components/FinanceManagement';
+import StudentAcademicView from './components/StudentAcademicView';
+import AdminOverrideManagement from './components/AdminOverrideManagement';
 import Login from './views/Login';
 import LandingPage from './views/LandingPage';
 import Footer from './components/Footer';
 import AcademicResults from './components/AcademicResults';
 import CourseRegistration from './components/CourseRegistration';
 import FacultyWorkspace from './components/FacultyWorkspace';
-import NoticeManagement from './components/NoticeManagement';
-import StudentAcademicView from './components/StudentAcademicView';
-import AdminOverrideManagement from './components/AdminOverrideManagement';
-import EnrollmentManagement from './components/EnrollmentManagement';
-import ExamManagement from './components/ExamManagement';
 import { generateInstitutionalReport } from './lib/exportUtils';
 
 
@@ -139,6 +136,42 @@ function App() {
     if (modalCtx.type === 'csv_import') return handleCSVImport(formData.raw);
     if (modalCtx.type === 'calendar_update') return handleCalendarUpdate(formData.raw);
 
+    if (modalCtx.type === 'notice_create') {
+      const errors = {};
+      if (!formData.title?.trim()) errors.title = "A formal title is required for institutional broadcasts.";
+      if (!formData.content?.trim()) errors.content = "Notice body cannot be empty.";
+      if (!formData.visible_to || formData.visible_to.length === 0) errors.visible_to = "Specify at least one target portal.";
+      if (formData.expires_at && formData.created_at && new Date(formData.expires_at) < new Date(formData.created_at)) {
+        errors.expires_at = "Expiry date cannot precede the publication date.";
+      }
+
+      if (Object.keys(errors).length > 0) {
+        setFormData({ ...formData, _errors: errors });
+        return;
+      }
+      
+      // Add institutional metadata
+      const noticePayload = {
+        ...formData,
+        created_by: user.name || user.id,
+        is_published: formData.is_published !== false, // default true
+        category: formData.category || 'General',
+        visible_to: formData.visible_to || ['all'],
+        created_at: formData.created_at || new Date().toISOString()
+      };
+      delete noticePayload._errors;
+      delete noticePayload._supabaseError;
+
+      if (modalCtx.data) {
+        setNotices(prev => prev.map(n => n.id === modalCtx.data.id ? { ...n, ...noticePayload } : n));
+      } else {
+        setNotices(prev => [{ ...noticePayload, id: Date.now().toString() }, ...prev]);
+      }
+      notify("Institutional Announcement Broadcasted.");
+      setIsModalOpen(false);
+      return;
+    }
+
     if (modalCtx.type === 'assign_hod') {
         const { id, departmentID } = modalCtx.data;
         const targetID = id || departmentID;
@@ -157,7 +190,7 @@ function App() {
     }
 
     const { type, data } = modalCtx;
-    const setters = { student: setStudents, faculty: setFaculty, finance: setFinance, courses: setCourses, department: setDepartments, exam: setExams };
+    const setters = { student: setStudents, faculty: setFaculty, finance: setFinance, courses: setCourses, department: setDepartments, exam: setExams, upload_exam_pdf: setExams };
     const setter = setters[type];
 
     if (setter) {
@@ -342,10 +375,13 @@ function App() {
               { label: 'Total Faculty',  value: faculty.length,  action: 'VIEW_FACULTY',  trend: 'All Staff' },
               { label: 'Course Catalog', value: courses.length,  action: 'VIEW_CATALOG',  trend: 'Active Courses' },
               { label: 'Blocked Students', value: students.filter(s => {
-                  const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID);
-                  const isCleared = fin && (fin.dueAmount === 0);
+                  const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID || f.studentID === s.regNumber);
+                  const sPayments = feePayments.filter(p => p.studentID === s.id || p.studentID === s.dbID || p.studentID === s.regNumber);
+                  const received = sPayments.reduce((sum, p) => sum + (parseFloat(p.amountPaid) || 0), 0);
+                  const total = fin?.totalFee || fin?.dueAmount || 0;
+                  const isCleared = total > 0 && (total - received <= 0);
                   const hasOverride = adminOverrides.some(o => o.studentID === s.id && o.registrationAllowed);
-                  return !isCleared && !hasOverride;
+                  return total > 0 && !isCleared && !hasOverride;
               }).length, action: 'VIEW_BLOCKED', warning: true },
             ]
 
@@ -353,7 +389,20 @@ function App() {
           ? [
               { label: 'Enrolled Courses', value: myEnrolments.length, action: 'VIEW_REGISTRATION', trend: 'View Courses' },
               { label: 'CGPA',             value: myGPA,               action: 'VIEW_MY_RESULTS',   trend: 'Academic Score' },
-              { label: 'Fee Balance',      value: myFinance.length > 0 ? ((myFinance[0].dueAmount || 0) === 0 ? 'CLEARED' : `PKR ${(myFinance[0].dueAmount || 0).toLocaleString()}`) : 'N/A', action: 'VIEW_FINANCE', warning: (myFinance[0]?.dueAmount || 0) > 0 },
+              { label: 'Fee Balance',      value: (() => {
+                  const fin = finance.find(f => f.studentID === user.id || f.studentID === user.dbID || f.studentID === user.regNumber);
+                  if (!fin) return 'N/A';
+                  const sPay = feePayments.filter(p => p.studentID === user.id || p.studentID === user.dbID || p.studentID === user.regNumber);
+                  const paid = sPay.reduce((sum, p) => sum + (parseFloat(p.amountPaid) || 0), 0);
+                  const total = fin.totalFee || fin.dueAmount || 0;
+                  const bal = Math.max(0, total - paid);
+                  return bal === 0 && total > 0 ? 'CLEARED' : `PKR ${bal.toLocaleString()}`;
+              })(), action: 'VIEW_FINANCE', warning: (() => {
+                  const fin = finance.find(f => f.studentID === user.id || f.studentID === user.dbID || f.studentID === user.regNumber);
+                  const sPay = feePayments.filter(p => p.studentID === user.id || p.studentID === user.dbID || p.studentID === user.regNumber);
+                  const paid = sPay.reduce((sum, p) => sum + (parseFloat(p.amountPaid) || 0), 0);
+                  return ((fin?.totalFee || fin?.dueAmount || 0) - paid) > 0;
+              })() },
             ]
           : user.role === ROLES.FACULTY
           ? [
@@ -409,21 +458,56 @@ function App() {
       case 'students': return <StudentManagement students={students} finance={finance} openForm={openForm} handleDelete={(s,i,t) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:'id'})} setStudents={setStudents} />;
       
       case 'notices': 
-        if (user.role === ROLES.ADMIN) return <NoticeManagement notices={notices} setNotices={setNotices} openForm={openForm} />;
+        const isStudent = user.role === ROLES.STUDENT;
+        const isFaculty = user.role === ROLES.FACULTY;
+        const isFinance = user.role === ROLES.FINANCE;
+        
+        if (user.role === ROLES.ADMIN) return <NoticeManagement notices={notices} setNotices={setNotices} openForm={openForm} loading={loading} />;
+
+        const filteredNotices = notices.filter(n => {
+          if (!n.is_published && user.role !== ROLES.ADMIN) return false;
+          if (n.expires_at && new Date(n.expires_at) < new Date()) return false;
+          
+          const targets = n.visible_to || ['all'];
+          if (targets.includes('all')) return true;
+          if (isStudent && targets.includes('student')) return true;
+          if (isFaculty && targets.includes('faculty')) return true;
+          if (isFinance && targets.includes('finance')) return true;
+          
+          return false;
+        });
+
         return (
-          <div className="view-container fade-in">
-            <div className="view-header-premium">
+          <div className="view-container">
+            <div className="page-header">
               <h1>Announcements</h1>
-              <p>Official updates for {user.role} personnel.</p>
+              <p className="page-subtitle">Official updates for {user.role} personnel.</p>
             </div>
-            <div className="glass-card">
-               {notices.map(n => (
-                 <div key={n.id} className="notice-item-premium" style={{borderBottom:'1px solid var(--glass-border)', padding:'24px'}}>
-                    <h3>{n.title}</h3>
-                    <p style={{marginTop:'8px', opacity:0.8}}>{n.content}</p>
-                    <div className="mt-12" style={{fontSize:'12px', opacity:0.5}}>{n.date}</div>
+            <div className="notices-management-grid section-gap" style={{display:'grid', gap:'20px'}}>
+               {filteredNotices.map(n => (
+                 <div key={n.id} className="section-card fade-in" style={{padding:'24px'}}>
+                    <div style={{display:'flex', gap:'8px', alignItems:'center', marginBottom:'12px'}}>
+                      <span className="badge-category" style={{
+                        padding: '3px 8px', fontSize: '11px', borderRadius: '2px', textTransform: 'uppercase', letterSpacing: '0.06em',
+                        background: 'rgba(26, 58, 107, 0.1)', color: 'var(--color-ink)'
+                      }}>
+                        {n.category || 'General'}
+                      </span>
+                      <span className="hint" style={{fontWeight:700, color: 'var(--color-ink)'}}>
+                        {new Date(n.created_at || n.date).toLocaleDateString('en-GB', { day: '2d', month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <h3 style={{fontFamily: 'var(--font-heading)', fontSize: '20px', marginBottom: '12px'}}>{n.title}</h3>
+                    <p style={{opacity:0.8}}>{n.content}</p>
                  </div>
                ))}
+               {filteredNotices.length === 0 && (
+                 <div style={{ textAlign: 'center', padding: '48px 24px' }} className="section-card">
+                   <div style={{ fontSize: '32px', marginBottom: '12px' }}>📋</div>
+                   <p style={{ fontFamily: 'var(--font-heading)', fontSize: '18px', color: 'var(--color-ink)' }}>No active announcements</p>
+                   <p style={{ fontSize: '14px', color: 'var(--color-ink-muted)' }}>There are no official notifications for your portal at this time.</p>
+                 </div>
+               )}
             </div>
           </div>
         );
@@ -487,13 +571,9 @@ function App() {
       );
       
       
+      case 'students': return <StudentManagement students={students} finance={finance} feePayments={feePayments} openForm={openForm} handleDelete={(s,i,t) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:'id'})} setStudents={setStudents} />;
+      
       case 'faculty': return <FacultyManagement faculty={faculty} openForm={openForm} handleDelete={(s,i,t) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:'id'})} setFaculty={setFaculty} />;
-      
-      case 'departments': return <DepartmentManagement departments={departments} />;
-      
-      case 'catalog': return <CourseManagement courses={courses} setCourses={setCourses} faculty={faculty} enrolments={enrolments} user={user} openForm={openForm} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
-      
-      case 'finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} />;
       case 'my-finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} />;
 
       case 'overrides':
@@ -503,7 +583,7 @@ function App() {
         return <TimetableManagement uploads={timetableUploads} setUploads={setTimetableUploads} setEntries={setTimetableEntries} />;
 
       case 'registration': 
-        return <CourseRegistration courses={courses} enrolments={enrolments} setEnrolments={setEnrolments} user={user} results={results} notify={notify} finance={finance} adminOverrides={adminOverrides} />;
+        return <CourseRegistration courses={courses} enrolments={enrolments} setEnrolments={setEnrolments} user={user} results={results} notify={notify} finance={finance} adminOverrides={adminOverrides} feePayments={feePayments} />;
 
       case 'blocked-audit':
         return (
@@ -512,27 +592,45 @@ function App() {
               <h1>Financial Block Audit</h1>
               <p>Registry of students currently restricted from registration due to outstanding dues.</p>
             </div>
-            <div className="table-card-premium glass-card">
+            <div className="card" style={{padding: '0', overflow: 'hidden'}}>
               <table className="premium-table">
                 <thead><tr><th>Student Record</th><th>Login ID</th><th>Registry #</th><th>Outstanding</th><th>Override Status</th></tr></thead>
                 <tbody>
                   {students.filter(s => {
-                    const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID);
-                    const isCleared = fin && (fin.dueAmount === 0);
+                    const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID || f.studentID === s.regNumber);
+                    const sPayments = feePayments.filter(p => p.studentID === s.id || p.studentID === s.dbID || p.studentID === s.regNumber);
+                    const received = sPayments.reduce((sum, p) => sum + (parseFloat(p.amountPaid) || 0), 0);
+                    const total = fin?.totalFee || fin?.dueAmount || 0;
+                    const isCleared = total > 0 && (total - received <= 0);
                     const hasOverride = adminOverrides.some(o => o.studentID === s.id && o.registrationAllowed);
-                    return !isCleared && !hasOverride;
+                    return total > 0 && !isCleared && !hasOverride;
                   }).map(s => {
-                    const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID);
+                    const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID || f.studentID === s.regNumber);
+                    const sPayments = feePayments.filter(p => p.studentID === s.id || p.studentID === s.dbID || p.studentID === s.regNumber);
+                    const received = sPayments.reduce((sum, p) => sum + (parseFloat(p.amountPaid) || 0), 0);
+                    const total = fin?.totalFee || fin?.dueAmount || 0;
+                    const pending = Math.max(0, total - received);
                     return (
                       <tr key={s.id}>
-                        <td><span style={{fontWeight:600, color:'white'}}>{s.name}</span></td>
-                        <td><span className="badge-premium" style={{background:'rgba(255,255,255,0.05)', color:'var(--accent)', fontSize:'12px'}}>{s.id}</span></td>
+                        <td><span style={{fontWeight:600, color:'var(--color-ink)'}}>{s.name}</span></td>
+                        <td><span className="badge-premium" style={{background:'var(--color-border)', color:'var(--color-ink)', fontSize:'12px'}}>{s.id}</span></td>
                         <td className="font-monospace" style={{fontSize:'12px', opacity:0.8}}>{s.regNumber || 'FA24-ADM-TBD'}</td>
-                        <td style={{color:'#ef4444', fontWeight:700}}>PKR {(fin?.dueAmount || 45000).toLocaleString()}</td>
+                        <td style={{color:'var(--color-danger)', fontWeight:700}}>PKR {pending.toLocaleString()}</td>
                         <td><span className="badge-premium" style={{opacity:0.5}}>No Active Override</span></td>
                       </tr>
                     );
                   })}
+                  {students.filter(s => {
+                    const fin = finance.find(f => f.studentID === s.id || f.studentID === s.dbID || f.studentID === s.regNumber);
+                    const sPayments = feePayments.filter(p => p.studentID === s.id || p.studentID === s.dbID || p.studentID === s.regNumber);
+                    const received = sPayments.reduce((sum, p) => sum + (parseFloat(p.amountPaid) || 0), 0);
+                    const total = fin?.totalFee || fin?.dueAmount || 0;
+                    const isCleared = total > 0 && (total - received <= 0);
+                    const hasOverride = adminOverrides.some(o => o.studentID === s.id && o.registrationAllowed);
+                    return total > 0 && !isCleared && !hasOverride;
+                  }).length === 0 && (
+                    <tr><td colSpan="5" style={{textAlign:'center', opacity:0.5, padding:'40px'}}>No financial blocks detected in active registry.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -554,7 +652,7 @@ function App() {
               <h1>Official Performance Records</h1>
               <p>Registry of confirmed academic results and GPA metrics.</p>
             </div>
-            <div className="table-card-premium glass-card">
+            <div className="card" style={{padding: '0', overflow: 'hidden'}}>
               <table className="premium-table">
                 <thead><tr><th>Result ID</th><th>Student Record</th><th>Course</th><th>Grade</th><th>GPA</th></tr></thead>
                 <tbody>
@@ -611,7 +709,7 @@ function App() {
         );
       case 'my-timetable':
         const studentBatch = user.batch || (students.find(s => s.id === user.id || s.dbID === user.id)?.batch);
-        const myStudentEntries = timetableEntries.filter(e => e.owner_label === studentBatch || e.owner_label.includes(studentBatch || ''));
+        const myStudentEntries = studentBatch ? timetableEntries.filter(e => e.owner_label === studentBatch || e.owner_label.includes(studentBatch)) : [];
         if (timetableUploads.length === 0) return <div className="p-40 text-center"><h2 style={{opacity:0.5}}>Timetable not yet published by admin</h2></div>;
         return <TimetableGrid entries={myStudentEntries} title={`My Timetable (${studentBatch || 'General'})`} />;
 
@@ -621,7 +719,8 @@ function App() {
       case 'finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} />;
       
       case 'faculty-timetable':
-        const myTeacherEntries = timetableEntries.filter(e => e.owner_label === user.facultyName || e.owner_label.includes(user.facultyName || ''));
+        const teacherName = user.facultyName || user.name;
+        const myTeacherEntries = teacherName ? timetableEntries.filter(e => e.owner_label === teacherName || e.owner_label.includes(teacherName)) : [];
         if (timetableUploads.length === 0) return <div className="p-40 text-center"><h2 style={{opacity:0.5}}>Timetable not yet published by admin</h2></div>;
         return <TimetableGrid entries={myTeacherEntries} title={`Faculty Timetable — ${user.facultyName}`} />;
       
@@ -673,7 +772,7 @@ function App() {
         );
 
       case 'exams':
-        return <ExamManagement exams={exams} setExams={setExams} courses={courses} faculty={faculty} user={user} openForm={openForm} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
+        return <ExamManagement exams={exams} setExams={setExams} courses={courses} faculty={faculty} user={user} openForm={openForm} notify={notify} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
 
 
       default: return <div className="placeholder-view glass-card p-40"><h2>{activeTab} Module</h2><p>CUI Services initializing...</p></div>;
@@ -688,25 +787,28 @@ function App() {
         return (
           <div className="form-grid-premium" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Full Name</label>
-              <input className="input-premium" placeholder="System ID" value={formData.id || ''} onChange={e => setFormData({...formData, id: e.target.value})} style={{display:'none'}} />
+              <label>Full Name</label>
               <input className="input-premium" placeholder="e.g. John Doe" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} />
             </div>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Registration Number</label>
+              <label>Registration Number</label>
               <input className="input-premium" placeholder="FA24-BCS-055" value={formData.regNumber || ''} onChange={e => setFormData({...formData, regNumber: e.target.value})} />
             </div>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Contact Phone</label>
+              <label>Institutional Email</label>
+              <input className="input-premium" placeholder="john@cui.edu.pk" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} />
+            </div>
+            <div>
+              <label>Contact Phone</label>
               <input className="input-premium" placeholder="+92 3XX XXXXXXX" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} />
             </div>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Personal Email</label>
+              <label>Personal Email</label>
               <input className="input-premium" placeholder="john.doe@gmail.com" value={formData.personalEmail || ''} onChange={e => setFormData({...formData, personalEmail: e.target.value})} />
             </div>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Degree Program</label>
-              <select className="input-premium" style={{background:'var(--surface-container-high)', color:'white'}} value={formData.program || ''} onChange={e => setFormData({...formData, program: e.target.value})}>
+              <label>Degree Program</label>
+              <select className="input-premium" value={formData.program || ''} onChange={e => setFormData({...formData, program: e.target.value})}>
                 <option value="">Select Program</option>
                 <option value="BS Computer Science">BS Computer Science</option>
                 <option value="BS Software Engineering">BS Software Engineering</option>
@@ -714,17 +816,34 @@ function App() {
               </select>
             </div>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Batch / Intake</label>
+              <label>Section</label>
+              <select className="input-premium" value={formData.section || ''} onChange={e => setFormData({...formData, section: e.target.value})}>
+                <option value="A">Section A</option>
+                <option value="B">Section B</option>
+                <option value="C">Section C</option>
+                <option value="D">Section D</option>
+              </select>
+            </div>
+            <div>
+              <label>Batch / Intake</label>
               <input className="input-premium" placeholder="Fall 2024" value={formData.batch || ''} onChange={e => setFormData({...formData, batch: e.target.value})} />
+            </div>
+            <div>
+              <label>Portal Password</label>
+              <input className="input-premium" type="password" placeholder="Default: 123" value={formData.password || ''} onChange={e => setFormData({...formData, password: e.target.value})} />
             </div>
           </div>
         );
       case 'department':
         return (
-          <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+          <div className="form-grid-premium" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Department Name</label>
+              <label>Department Name</label>
               <input className="input-premium" placeholder="e.g. Humanities" value={formData.departmentName || ''} onChange={e => setFormData({...formData, departmentName: e.target.value})} />
+            </div>
+            <div>
+              <label>Department Code</label>
+              <input className="input-premium" placeholder="e.g. HUM" value={formData.departmentID || ''} onChange={e => setFormData({...formData, departmentID: e.target.value})} />
             </div>
           </div>
         );
@@ -735,12 +854,11 @@ function App() {
                <span style={{fontSize:'12px', opacity:0.6}}>Target Department:</span>
                <div style={{fontSize:'16px', fontWeight:600, color:'var(--accent)'}}>{modalCtx.data?.departmentName}</div>
             </div>
-            <label style={{fontSize:'12px', opacity:0.8}}>Search & Select Head of Department (HOD)</label>
+            <label>Search & Select Head of Department (HOD)</label>
             <input 
               list="faculty-list" 
               className="input-premium" 
               placeholder="Start typing teacher name..." 
-              style={{background:'var(--surface-container-high)', color:'white'}}
               value={formData.headOfDepartment || ''} 
               onChange={e => setFormData({...formData, headOfDepartment: e.target.value})} 
             />
@@ -756,12 +874,11 @@ function App() {
                <span style={{fontSize:'12px', opacity:0.6}}>Assigning Instructor to Course:</span>
                <div style={{fontSize:'16px', fontWeight:600, color:'var(--accent)'}}>{modalCtx.data?.courseName} ({modalCtx.data?.courseID})</div>
             </div>
-            <label style={{fontSize:'12px', opacity:0.8}}>Search & Select Instructor</label>
+            <label>Search & Select Instructor</label>
             <input 
                 list="instructor-list"
                 className="input-premium" 
                 placeholder="Type to search teachers..."
-                style={{background:'var(--surface-container-high)', color:'white'}} 
                 value={formData.facultyId || ''} 
                 onChange={e => setFormData({...formData, facultyId: e.target.value})} 
             />
@@ -777,29 +894,49 @@ function App() {
         return (
           <div className="form-grid-premium" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Full Name</label>
+              <label>Full Name</label>
               <input className="input-premium" placeholder="Dr. Nasir" value={formData.facultyName || ''} onChange={e => setFormData({...formData, facultyName: e.target.value})} />
             </div>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Department</label>
-              <input className="input-premium" placeholder="Computer Science" value={formData.department || ''} onChange={e => setFormData({...formData, department: e.target.value})} />
+              <label>Employee ID</label>
+              <input className="input-premium" placeholder="VHR-F-XXX" value={formData.id || ''} onChange={e => setFormData({...formData, id: e.target.value})} />
             </div>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Designation</label>
+              <label>Designation</label>
               <input className="input-premium" placeholder="Assistant Professor" value={formData.designation || ''} onChange={e => setFormData({...formData, designation: e.target.value})} />
+            </div>
+            <div>
+              <label>Institutional Email</label>
+              <input className="input-premium" placeholder="nasir@cui.edu.pk" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} />
+            </div>
+            <div>
+              <label>Personal Phone</label>
+              <input className="input-premium" placeholder="+92 3XX XXXXXXX" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} />
+            </div>
+            <div>
+              <label>Portal Password</label>
+              <input className="input-premium" type="password" placeholder="Default: 123" value={formData.password || ''} onChange={e => setFormData({...formData, password: e.target.value})} />
             </div>
           </div>
         );
       case 'course':
         return (
-          <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+          <div className="form-grid-premium" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Course Name</label>
+              <label>Course Name</label>
               <input className="input-premium" placeholder="e.g. Data Structures" value={formData.courseName || ''} onChange={e => setFormData({...formData, courseName: e.target.value})} />
             </div>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Credit Hours</label>
+              <label>Course ID / Code</label>
+              <input className="input-premium" placeholder="e.g. CSC211" value={formData.courseID || ''} onChange={e => setFormData({...formData, courseID: e.target.value})} />
+            </div>
+            <div>
+              <label>Credit Hours</label>
               <input className="input-premium" type="number" placeholder="3" value={formData.credits || ''} onChange={e => setFormData({...formData, credits: e.target.value})} />
+            </div>
+            <div>
+              <label>Prerequisites</label>
+              <input className="input-premium" placeholder="e.g. CSC101, MTH101" value={(formData.prerequisites || []).join(', ')} onChange={e => setFormData({...formData, prerequisites: e.target.value.split(',').map(s => s.trim())})} />
             </div>
           </div>
         );
@@ -807,20 +944,141 @@ function App() {
         return (
           <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Amount Description</label>
+              <label>Amount Description</label>
               <input className="input-premium" placeholder="e.g. Semester Fee Fall 2024" value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} />
             </div>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Amount (PKR)</label>
+              <label>Amount (PKR)</label>
               <input className="input-premium" type="number" value={formData.amount || ''} onChange={e => setFormData({...formData, amount: e.target.value})} />
             </div>
           </div>
         );
       case 'notice_create':
+        const portals = ['all', 'student', 'faculty', 'admin', 'finance'];
+        const currentTargets = formData.visible_to || ['all'];
+        
+        const togglePortal = (portal) => {
+          let next;
+          if (portal === 'all') {
+            next = ['all'];
+          } else {
+            next = currentTargets.filter(t => t !== 'all');
+            if (next.includes(portal)) {
+              next = next.filter(t => t !== portal);
+            } else {
+              next.push(portal);
+            }
+            if (next.length === 0) next = ['all'];
+          }
+          setFormData({ ...formData, visible_to: next });
+        };
+
         return (
-          <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
-            <input className="input-premium" placeholder="Notification Title" value={formData.title || ''} onChange={e => setFormData({...formData, title: e.target.value})} />
-            <textarea className="input-premium" style={{height:'100px'}} placeholder="Notice Content..." value={formData.content || ''} onChange={e => setFormData({...formData, content: e.target.value})} />
+          <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px', textAlign: 'left'}}>
+            <div>
+              <label>Notice Title</label>
+              <input 
+                className="input-premium" 
+                placeholder="e.g. Orientation Week, Fee Submission Deadline" 
+                value={formData.title || ''} 
+                onChange={e => setFormData({...formData, title: e.target.value})} 
+              />
+              {formData._errors?.title && <small style={{color: 'var(--color-danger)'}}>{formData._errors.title}</small>}
+            </div>
+            
+            <div>
+              <label>Announcement Body</label>
+              <textarea 
+                className="input-premium" 
+                style={{height:'120px', minHeight: '120px'}} 
+                placeholder="Write the full announcement here..." 
+                value={formData.content || ''} 
+                onChange={e => setFormData({...formData, content: e.target.value})} 
+              />
+              {formData._errors?.content && <small style={{color: 'var(--color-danger)'}}>{formData._errors.content}</small>}
+            </div>
+
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
+              <div>
+                <label>Category</label>
+                <select 
+                  className="input-premium" 
+                  value={formData.category || 'General'} 
+                  onChange={e => setFormData({...formData, category: e.target.value})}
+                >
+                  {['General', 'Academic', 'Finance', 'Exam', 'Holiday', 'Emergency', 'Event'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label>Status</label>
+                <div style={{display: 'flex', gap: '8px'}}>
+                  {['Published', 'Draft'].map(s => (
+                    <button 
+                      key={s}
+                      className={((s === 'Published' && formData.is_published !== false) || (s === 'Draft' && formData.is_published === false)) ? 'btn-primary' : 'btn-outline'}
+                      style={{flex: 1, fontSize: '10px', padding: '8px 4px'}}
+                      onClick={() => setFormData({...formData, is_published: s === 'Published'})}
+                    >
+                      {s.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label>Visible on Portals</label>
+              <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                {portals.map(p => (
+                  <button 
+                    key={p}
+                    className={currentTargets.includes(p) ? 'btn-primary' : 'btn-outline'}
+                    style={{
+                      padding: '6px 12px', fontSize: '10px', borderRadius: '20px',
+                      background: currentTargets.includes(p) ? 'var(--color-ink)' : 'transparent',
+                      color: currentTargets.includes(p) ? 'white' : 'var(--color-ink)',
+                      border: '1px solid var(--color-border)'
+                    }}
+                    onClick={() => togglePortal(p)}
+                  >
+                    {p.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              {formData._errors?.visible_to && <small style={{color: 'var(--color-danger)'}}>{formData._errors.visible_to}</small>}
+            </div>
+
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
+              <div>
+                <label>Publication Date</label>
+                <input 
+                  type="date" 
+                  className="input-premium" 
+                  value={formData.created_at ? new Date(formData.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]} 
+                  onChange={e => setFormData({...formData, created_at: e.target.value})}
+                />
+                {modalCtx.data && <small className="hint">Original: {new Date(modalCtx.data.created_at).toLocaleDateString()}</small>}
+              </div>
+              <div>
+                <label>Expires On (optional)</label>
+                <input 
+                  type="date" 
+                  className="input-premium" 
+                  value={formData.expires_at ? new Date(formData.expires_at).toISOString().split('T')[0] : ''} 
+                  onChange={e => setFormData({...formData, expires_at: e.target.value})}
+                />
+                <small className="hint">Leave blank for permanent</small>
+                {formData._errors?.expires_at && <div style={{color: 'var(--color-danger)', fontSize: '10px'}}>{formData._errors.expires_at}</div>}
+              </div>
+            </div>
+            
+            {formData._supabaseError && (
+              <div style={{padding: '10px', background: 'rgba(168, 50, 42, 0.1)', color: 'var(--color-danger)', borderRadius: 'var(--radius)', fontSize: '12px'}}>
+                {formData._supabaseError}
+              </div>
+            )}
           </div>
         );
       case 'course_roster':
@@ -856,7 +1114,7 @@ function App() {
         return (
           <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Target Course</label>
+              <label>Target Course</label>
               <select className="input-premium" value={formData.courseID || ''} onChange={e => setFormData({...formData, courseID: e.target.value})}>
                 <option value="">Select Course</option>
                 {courses.map(c => <option key={c.courseID} value={c.courseID}>{c.courseName} ({c.courseID})</option>)}
@@ -864,29 +1122,131 @@ function App() {
             </div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
                <div>
-                  <label style={{fontSize:'12px', opacity:0.8}}>Exam Date</label>
-                  <input type="date" className="input-premium" style={{background:'var(--surface-container-high)', color:'white'}} value={formData.date || ''} onChange={e => setFormData({...formData, date: e.target.value})} />
+                  <label>Exam Date</label>
+                  <input type="date" className="input-premium" value={formData.date || ''} onChange={e => setFormData({...formData, date: e.target.value})} />
                </div>
                <div>
-                  <label style={{fontSize:'12px', opacity:0.8}}>Commencement Time</label>
-                  <input type="time" className="input-premium" style={{background:'var(--surface-container-high)', color:'white'}} value={formData.time || ''} onChange={e => setFormData({...formData, time: e.target.value})} />
+                  <label>Commencement Time</label>
+                  <input type="time" className="input-premium" value={formData.time || ''} onChange={e => setFormData({...formData, time: e.target.value})} />
                </div>
             </div>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Examination Venue</label>
+              <label>Examination Venue</label>
               <input className="input-premium" placeholder="e.g. Hall A, Lab 3" value={formData.venue || ''} onChange={e => setFormData({...formData, venue: e.target.value})} />
             </div>
             <div>
-              <label style={{fontSize:'12px', opacity:0.8}}>Exam Category</label>
+              <label>Exam Category</label>
               <select className="input-premium" value={formData.type || ''} onChange={e => setFormData({...formData, type: e.target.value})}>
                 <option value="Midterm">Midterm</option>
                 <option value="Terminal">Terminal (Final)</option>
                 <option value="Sessional">Sessional</option>
               </select>
             </div>
+            <div>
+              <label>Invigilator / Supervisor</label>
+              <input className="input-premium" placeholder="Enter Faculty Name" value={formData.invigilator || ''} onChange={e => setFormData({...formData, invigilator: e.target.value})} />
+            </div>
+          </div>
+        );
+      case 'upload_exam_pdf':
+        return (
+          <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'16px'}}>
+            <div className="card" style={{padding:'32px', textAlign:'center', border:'2px dashed var(--color-border)', position: 'relative'}}>
+               <div style={{fontSize:'40px', marginBottom:'16px'}}>📤</div>
+               <p style={{fontSize:'14px', fontWeight:600}}>Official Date Sheet PDF Upload</p>
+               
+               <div style={{marginTop: '16px'}}>
+                 {formData.fileURL ? (
+                   <div className="fade-in" style={{background: 'rgba(201, 164, 53, 0.1)', padding: '12px', borderRadius: '4px', border: '1px solid var(--color-accent)', marginBottom: '16px'}}>
+                     <span style={{fontSize: '12px', color: 'var(--color-accent)', fontWeight: 700}}>✓ FILE READY: {formData.fileName || 'exam_schedule.pdf'}</span>
+                   </div>
+                 ) : (
+                   <div style={{marginBottom: '16px', opacity: 0.6, fontSize: '12px'}}>Select the official PDF document from your system.</div>
+                 )}
+
+                 <input 
+                   type="file" 
+                   accept="application/pdf" 
+                   style={{display: 'none'}} 
+                   id="exam-pdf-upload"
+                   onChange={async (e) => {
+                     const file = e.target.files[0];
+                     if (!file) return;
+                     
+                     notify("Uploading official document...", "info");
+                     try {
+                        const fileExt = file.name.split('.').pop();
+                        const fileName = `exam_schedule_${Date.now()}.${fileExt}`;
+                        const filePath = `schedules/${fileName}`;
+
+                        if (isDatabaseConnected()) {
+                          const { data, error } = await supabase.storage
+                            .from('institutional-documents')
+                            .upload(filePath, file);
+
+                          if (error) throw error;
+
+                          const { data: { publicUrl } } = supabase.storage
+                            .from('institutional-documents')
+                            .getPublicUrl(filePath);
+
+                          setFormData({ 
+                            ...formData, 
+                            fileURL: publicUrl, 
+                            fileName: file.name,
+                            type: 'pdf_schedule',
+                            id: modalCtx.data?.id || 'pdf_schedule_master' 
+                          });
+                          notify("Institutional Schedule Uploaded Successfully");
+                        } else {
+                          // Mock for local/offline testing
+                          setFormData({ 
+                            ...formData, 
+                            fileURL: URL.createObjectURL(file), 
+                            fileName: file.name,
+                            type: 'pdf_schedule',
+                            id: 'pdf_schedule_master' 
+                          });
+                          notify("Local Cache: Schedule linked (Offline Mode)");
+                        }
+                     } catch (err) {
+                        console.error(err);
+                        notify("Upload failed: " + err.message, "error");
+                     }
+                   }}
+                 />
+                 <button className="btn-primary-premium" onClick={() => document.getElementById('exam-pdf-upload').click()}>
+                   {formData.fileURL ? 'REPLACE DOCUMENT' : 'SELECT PDF FILE'}
+                 </button>
+               </div>
+
+               <p style={{fontSize:'11px', opacity:0.5, marginTop:'16px'}}>The uploaded file will be immediately visible on all Student and Faculty portals.</p>
+            </div>
           </div>
         );
 
+      case 'notice_detail':
+        return (
+          <div style={{textAlign: 'left'}}>
+            <div style={{display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px'}}>
+              <span style={{
+                padding: '3px 8px', fontSize: '11px', borderRadius: '2px', textTransform: 'uppercase', letterSpacing: '0.06em',
+                background: 'rgba(26, 58, 107, 0.1)', color: 'var(--color-ink)'
+              }}>
+                {data.category || 'General'}
+              </span>
+              <span className="hint">{new Date(data.created_at || data.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+            </div>
+            <h2 style={{fontFamily: 'var(--font-heading)', fontSize: '28px', color: 'var(--color-ink)', marginBottom: '12px', border: 'none', padding: 0}}>{data.title}</h2>
+            <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid var(--color-border)'}}>
+              <div style={{width: '24px', height: '24px', borderRadius: '50%', background: 'var(--color-ink-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: 'var(--color-ink)'}}>
+                {data.created_by?.charAt(0) || 'U'}
+              </div>
+              <span style={{fontSize: '13px', fontWeight: 500, color: 'var(--color-ink-muted)'}}>Issued by {data.created_by || 'Institutional Authority'}</span>
+            </div>
+            <p style={{fontSize: '15px', lineHeight: '1.7', color: 'var(--color-ink)', whiteSpace: 'pre-wrap'}}>{data.content}</p>
+          </div>
+        );
       case 'calendar_update':
         return (<textarea className="input-premium" style={{height:'150px'}} placeholder="Event | Date Range..." onChange={e => setFormData({raw: e.target.value})} />);
       default:
@@ -902,33 +1262,34 @@ function App() {
 
 
   return (
-    <div className="app-wrapper-premium" onKeyDown={(e) => e.key === 'Enter' && isModalOpen && handleSave()}>
+    <div className="app-layout" onKeyDown={(e) => e.key === 'Enter' && isModalOpen && handleSave()}>
       
-      <button className="hamburger-premium" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-      </button>
-
-      <div className="mobile-header-premium">
-        <img src="https://crystalpng.com/wp-content/uploads/2022/02/COMSATS-University-logo.png" alt="COMSATS" style={{height:'32px'}} />
-      </div>
-
-      {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />}
+      <div className={`sidebar-backdrop ${isSidebarOpen ? 'active' : ''}`} onClick={() => setIsSidebarOpen(false)} />
 
       <Sidebar 
         user={user} 
         activeTab={activeTab} 
-        setActiveTab={(tab) => { switchTab(tab); setIsSidebarOpen(false); }} 
+        setActiveTab={(tab) => { 
+          if (tab === 'toggle-sidebar-collapse') {
+             setIsSidebarOpen(!isSidebarOpen);
+             return;
+          }
+          switchTab(tab); 
+          setIsSidebarOpen(false); 
+        }} 
         onLogout={handleLogout} 
         onHomeClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} 
         isOpen={isSidebarOpen}
         theme={theme}
         toggleTheme={toggleTheme}
       />
-      <main className="main-content-premium" style={{display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden'}}>
-        <div className="scroll-surface">
-            <header className="view-breadcrumb">CUI VEHARI / {user.role.toUpperCase()} / {activeTab.toUpperCase()}</header>
-            {renderContent()}
-        </div>
+
+      <button className="hamburger-mobile-only" onClick={() => setIsSidebarOpen(true)}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-ink)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      
+      <main className="main-content">
+        {renderContent()}
         <Footer />
       </main>
 
@@ -974,12 +1335,11 @@ function App() {
           </div>
         </div>
       )}
-      {/* Institutional Notifications Overlay */}
-      <div className="notifications-container-premium">
+      {/* Institutional Notifications Overlay - Fixed Floating Toasts */}
+      <div className="notif-layer">
         {notifs.map(n => (
-          <div key={n.id} className={`notification-premium ${n.type}`}>
-            <div className="notification-indicator" />
-            <span className="notification-msg">{n.msg}</span>
+          <div key={n.id} className={`notif-premium ${n.type}`}>
+            {n.msg}
           </div>
         ))}
       </div>

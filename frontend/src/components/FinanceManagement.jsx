@@ -6,6 +6,7 @@ const FinanceManagement = ({ finance, feePayments, setFinance, setFeePayments, u
   const [searchTerm, setSearchTerm] = useState('');
   const [batchFilter, setBatchFilter] = useState('All');
   const [deptFilter, setDeptFilter] = useState('All');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form States
   const [structureForm, setStructureForm] = useState({ studentId: '', totalFee: '', semester: 'Fall 2024' });
@@ -19,7 +20,12 @@ const FinanceManagement = ({ finance, feePayments, setFinance, setFeePayments, u
       const fin = finance.find(f => f.studentID === student.id || f.studentID === student.dbID || f.studentID === student.regNumber);
       const studentPayments = feePayments.filter(p => p.studentID === student.id || p.studentID === student.dbID || p.studentID === student.regNumber);
       const totalReceived = studentPayments.reduce((sum, p) => sum + (parseFloat(p.amountPaid) || 0), 0);
-      const totalFee = fin?.totalFee || fin?.dueAmount || 0;
+      
+      let totalFee = 0;
+      if (fin) {
+        totalFee = typeof fin.totalFee !== 'undefined' ? fin.totalFee : (fin.dueAmount || 0);
+      }
+      
       const pendingAmount = Math.max(0, totalFee - totalReceived);
 
       return {
@@ -42,6 +48,7 @@ const FinanceManagement = ({ finance, feePayments, setFinance, setFeePayments, u
 
   const handleSaveStructure = async (e) => {
     e.preventDefault();
+    if (isSaving) return;
     const { studentId, totalFee, semester } = structureForm;
     if (!studentId || !totalFee) return alert('Please fill all fields');
     
@@ -56,9 +63,13 @@ const FinanceManagement = ({ finance, feePayments, setFinance, setFeePayments, u
       fee_type: 'Tuition'
     };
 
+    setIsSaving(true);
     if (isDatabaseConnected()) {
       const { error } = await supabase.from('financials').upsert([newData], { onConflict: 'student_id' });
-      if (error) console.error('Error saving structure:', error);
+      if (error) {
+        console.error('Error saving structure:', error);
+        return alert(`Failed to save to database: ${error.message}`);
+      }
     }
 
     // Local update
@@ -70,18 +81,27 @@ const FinanceManagement = ({ finance, feePayments, setFinance, setFeePayments, u
       return [...prev, { studentID: studentId, totalFee: parseFloat(totalFee), semester, dueAmount: parseFloat(totalFee) }];
     });
 
+    setIsSaving(false);
     setStructureForm({ studentId: '', totalFee: '', semester: 'Fall 2024' });
     setActiveForm(null);
-    alert('Fee structure updated successfully');
+    alert('Institutional fee structure updated successfully.');
   };
 
   const handleRecordPayment = async (e) => {
     e.preventDefault();
+    if (isSaving) return;
     const { studentId, amountPaid, paymentDate, reference } = paymentForm;
-    if (!studentId || !amountPaid) return alert('Please fill all fields');
+    if (!studentId || !amountPaid) return alert('Please select a student and specify the amount.');
+    if (parseFloat(amountPaid) <= 0) return alert('Payment amount must be a positive value.');
 
-    const selectedStudent = students.find(s => s.id === studentId);
-    if (!selectedStudent) return alert('Student not found');
+    const selectedStudent = summaryData.find(s => s.id === studentId);
+    if (!selectedStudent) return alert('Registry record not found.');
+
+    if (parseFloat(amountPaid) > selectedStudent.pendingAmount) {
+      if (!window.confirm(`Warning: Payment amount (PKR ${parseFloat(amountPaid).toLocaleString()}) exceeds the pending balance (PKR ${selectedStudent.pendingAmount.toLocaleString()}). Do you wish to proceed with this overpayment?`)) {
+        return;
+      }
+    }
 
     const newPayment = {
       student_id: selectedStudent.dbID || selectedStudent.id,
@@ -90,6 +110,7 @@ const FinanceManagement = ({ finance, feePayments, setFinance, setFeePayments, u
       reference
     };
 
+    setIsSaving(true);
     if (isDatabaseConnected()) {
       const { data, error } = await supabase.from('fee_payments').insert([newPayment]).select();
       if (error) {
@@ -115,6 +136,7 @@ const FinanceManagement = ({ finance, feePayments, setFinance, setFeePayments, u
       }]);
     }
 
+    setIsSaving(false);
     setPaymentForm({ studentId: '', amountPaid: '', paymentDate: new Date().toISOString().split('T')[0], reference: '' });
     setActiveForm(null);
     alert('Payment recorded successfully');
@@ -147,12 +169,14 @@ const FinanceManagement = ({ finance, feePayments, setFinance, setFeePayments, u
             <div style={{textAlign: 'right'}}>
               <div style={{fontSize: '12px', opacity: 0.6}}>STATUS</div>
               <div style={{
-                color: myData.status === 'CLEARED' ? 'white' : 'white',
+                color: 'var(--color-bg)',
                 background: myData.status === 'CLEARED' ? 'var(--color-accent)' : 'var(--color-danger)',
                 padding: '4px 12px',
                 borderRadius: 'var(--radius)',
                 fontWeight: 700,
-                display: 'inline-block'
+                display: 'inline-block',
+                fontSize: '11px',
+                letterSpacing: '1px'
               }}>
                 {myData.status}
               </div>
@@ -278,19 +302,20 @@ const FinanceManagement = ({ finance, feePayments, setFinance, setFeePayments, u
         </div>
       )}
 
-      <div className="card" style={{padding: '0'}}>
-        <div style={{padding: '24px', display: 'flex', gap: '16px', alignItems: 'center', borderBottom: '1px solid var(--color-border)'}}>
+      <div className="card" style={{padding: '0', marginBottom: '32px'}}>
+        <div style={{padding: '16px 20px', display: 'flex', gap: '16px', alignItems: 'center', borderBottom: '1px solid var(--color-border)'}}>
+          <span className="hint" style={{fontWeight: 700, whiteSpace: 'nowrap', fontSize: '11px'}}>FILTER RECORDS:</span>
           <input 
-            style={{flex: 1}} 
-            placeholder="Search by Name or Reg No..." 
+            style={{flex: 1, border: 'none', background: 'transparent', outline: 'none'}} 
+            placeholder="Search by candidate name or registration number..." 
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
           />
-          <select style={{width: '200px'}} value={batchFilter} onChange={e => setBatchFilter(e.target.value)}>
+          <select style={{width: '200px', border: '1px solid var(--color-border)', padding: '8px', borderRadius: 'var(--radius)'}} value={batchFilter} onChange={e => setBatchFilter(e.target.value)}>
             <option value="All">All Batches</option>
             {[...new Set(students.map(s => s.batch))].map(b => <option key={b} value={b}>{b}</option>)}
           </select>
-          <select style={{width: '200px'}} value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
+          <select style={{width: '200px', border: '1px solid var(--color-border)', padding: '8px', borderRadius: 'var(--radius)'}} value={deptFilter} onChange={e => setDeptFilter(e.target.value)}>
             <option value="All">All Departments</option>
             {departments.map(d => <option key={d.departmentID} value={d.departmentID}>{d.departmentName}</option>)}
           </select>
@@ -308,6 +333,7 @@ const FinanceManagement = ({ finance, feePayments, setFinance, setFeePayments, u
                 <th>Status</th>
               </tr>
             </thead>
+            <tbody>
               {filteredData.length === 0 && (
                 <tr>
                   <td colSpan="6">
@@ -320,21 +346,22 @@ const FinanceManagement = ({ finance, feePayments, setFinance, setFeePayments, u
               )}
               {filteredData.map(s => (
                 <tr key={s.id}>
-                  <td><div style={{fontWeight: 600}}>{s.name}</div></td>
-                  <td><span style={{fontFamily: 'monospace', fontSize: '13px'}}>{s.regNumber}</span></td>
-                  <td>PKR {s.totalFee.toLocaleString()}</td>
-                  <td style={{color: 'var(--color-accent)', fontWeight: 600}}>PKR {s.totalReceived.toLocaleString()}</td>
-                  <td style={{color: s.pendingAmount > 0 ? 'var(--color-danger)' : 'var(--color-ink)', fontWeight: 700}}>
+                  <td data-label="Student"><div style={{fontWeight: 600}}>{s.name}</div></td>
+                  <td data-label="Reg No"><span style={{fontFamily: 'monospace', fontSize: '13px'}}>{s.regNumber}</span></td>
+                  <td data-label="Total Fee">PKR {s.totalFee.toLocaleString()}</td>
+                  <td data-label="Total Received" style={{color: 'var(--color-accent)', fontWeight: 600}}>PKR {s.totalReceived.toLocaleString()}</td>
+                  <td data-label="Pending" style={{color: s.pendingAmount > 0 ? 'var(--color-danger)' : 'var(--color-ink)', fontWeight: 700}}>
                     PKR {s.pendingAmount.toLocaleString()}
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <span style={{
-                      color: 'white',
+                      color: 'var(--color-bg)',
                       background: s.status === 'CLEARED' ? 'var(--color-accent)' : 'var(--color-danger)',
                       padding: '4px 10px',
                       borderRadius: 'var(--radius)',
                       fontSize: '11px',
-                      fontWeight: 800
+                      fontWeight: 800,
+                      letterSpacing: '0.5px'
                     }}>
                       {s.status}
                     </span>

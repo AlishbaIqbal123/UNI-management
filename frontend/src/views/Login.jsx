@@ -238,9 +238,10 @@ const Login = ({ onLogin, setStep, loginStep, authData, setAuthData, regSubStep,
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @media (max-width: 900px) {
+        @media (max-width: 768px) {
           .login-branding-col { display: none !important; }
-          .login-form-col { flex: 1 !important; background: var(--surface-container-high) !important; }
+          .login-form-col { flex: 1 !important; background: var(--surface-container-high) !important; padding: 16px !important; }
+          .login-card-premium { padding: 32px !important; }
         }
       `}} />
     </div>

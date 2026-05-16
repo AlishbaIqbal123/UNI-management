@@ -78,13 +78,21 @@ const StudentAcademicView = ({ user, enrolments, attendance, assessments, marks,
                 <div>
                   <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px', fontSize:'13px'}}>
                     <span style={{fontWeight:600}}>Lecture Attendance</span>
-                    <span style={{opacity:0.8}}>{classAtt.attended} / {classAtt.total} sessions ({classAtt.percent}%)</span>
+                    {classAtt.total > 0 ? (
+                      <span style={{opacity:0.8}}>{classAtt.attended} / {classAtt.total} sessions ({classAtt.percent}%)</span>
+                    ) : (
+                      <span style={{opacity:0.5, fontStyle:'italic'}}>No lectures recorded yet</span>
+                    )}
                   </div>
-                  <div style={{width:'100%', height:'8px', background:'var(--color-border)', borderRadius:'10px', overflow:'hidden', boxShadow:'inset 0 1px 2px rgba(0,0,0,0.1)'}}>
-                    <div style={{width:`${classAtt.percent}%`, height:'100%', background: getProgressColor(classAtt.percent), transition:'width 1s ease'}}></div>
-                  </div>
-                  {classAtt.percent < 75 && classAtt.total > 0 && (
-                    <p style={{color:'var(--color-danger)', fontSize:'10px', marginTop:'4px', fontWeight:600}}>⚠️ Below 75% threshold for lectures</p>
+                  {classAtt.total > 0 && (
+                    <>
+                      <div style={{width:'100%', height:'8px', background:'var(--color-border)', borderRadius:'10px', overflow:'hidden', boxShadow:'inset 0 1px 2px rgba(0,0,0,0.1)'}}>
+                        <div style={{width:`${classAtt.percent}%`, height:'100%', background: getProgressColor(classAtt.percent), transition:'width 1s ease'}}></div>
+                      </div>
+                      {classAtt.percent < 75 && (
+                        <p style={{color:'var(--color-danger)', fontSize:'10px', marginTop:'4px', fontWeight:600}}>⚠️ Below 75% threshold for lectures</p>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -92,13 +100,21 @@ const StudentAcademicView = ({ user, enrolments, attendance, assessments, marks,
                 <div>
                   <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px', fontSize:'13px'}}>
                     <span style={{fontWeight:600}}>Lab Attendance</span>
-                    <span style={{opacity:0.8}}>{labAtt.attended} / {labAtt.total} sessions ({labAtt.percent}%)</span>
+                    {labAtt.total > 0 ? (
+                      <span style={{opacity:0.8}}>{labAtt.attended} / {labAtt.total} sessions ({labAtt.percent}%)</span>
+                    ) : (
+                      <span style={{opacity:0.5, fontStyle:'italic'}}>No lab sessions recorded yet</span>
+                    )}
                   </div>
-                  <div style={{width:'100%', height:'8px', background:'var(--color-border)', borderRadius:'10px', overflow:'hidden', boxShadow:'inset 0 1px 2px rgba(0,0,0,0.1)'}}>
-                    <div style={{width:`${labAtt.percent}%`, height:'100%', background: getProgressColor(labAtt.percent), transition:'width 1s ease'}}></div>
-                  </div>
-                  {labAtt.percent < 75 && labAtt.total > 0 && (
-                    <p style={{color:'var(--color-danger)', fontSize:'10px', marginTop:'4px', fontWeight:600}}>⚠️ Below 75% threshold for labs</p>
+                  {labAtt.total > 0 && (
+                    <>
+                      <div style={{width:'100%', height:'8px', background:'var(--color-border)', borderRadius:'10px', overflow:'hidden', boxShadow:'inset 0 1px 2px rgba(0,0,0,0.1)'}}>
+                        <div style={{width:`${labAtt.percent}%`, height:'100%', background: getProgressColor(labAtt.percent), transition:'width 1s ease'}}></div>
+                      </div>
+                      {labAtt.percent < 75 && (
+                        <p style={{color:'var(--color-danger)', fontSize:'10px', marginTop:'4px', fontWeight:600}}>⚠️ Below 75% threshold for labs</p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

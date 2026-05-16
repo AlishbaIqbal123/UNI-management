@@ -1,7 +1,22 @@
 import React, { useState } from 'react';
 import { supabase, isDatabaseConnected } from '../lib/supabase';
 
-const ExamManagement = ({ user, students, courses, departments, assessments, setAssessments, marks, setMarks, enrolments, notify }) => {
+const ExamManagement = ({ 
+  user, 
+  students = [], 
+  courses = [], 
+  departments = [], 
+  assessments = [], 
+  setAssessments, 
+  marks = [], 
+  setMarks, 
+  enrolments = [], 
+  notify,
+  exams = [],
+  setExams,
+  openForm,
+  handleDelete
+}) => {
   const [selDept, setSelDept] = useState('');
   const [selCourse, setSelCourse] = useState('');
   const [selSection, setSelSection] = useState('');
@@ -55,7 +70,16 @@ const ExamManagement = ({ user, students, courses, departments, assessments, set
   };
 
   const handleAddAsst = async () => {
+    if (isSaving) return;
     if (!newAsst.title || newAsst.total_marks <= 0) return notify("Please provide title and valid marks", "error");
+    
+    // Check for duplicate Midterm/Final
+    if (newAsst.type === 'midterm' || newAsst.type === 'final') {
+      const exists = currentAssessments.find(a => a.type === newAsst.type);
+      if (exists) return notify(`${newAsst.type.toUpperCase()} already initialized for this section`, "error");
+    }
+
+    setIsSaving(true);
     const asstData = {
       ...newAsst,
       course_id: selCourse,
@@ -73,8 +97,12 @@ const ExamManagement = ({ user, students, courses, departments, assessments, set
       }
       notify(`Initialized ${newAsst.type}: ${newAsst.title}`);
       setShowAddAsst(false);
+      setNewAsst({ type: 'quiz', title: '', total_marks: 0 }); // Reset form
     } catch (err) {
-      notify("Error creating assessment", "error");
+      console.error(err);
+      notify(err.message || "Error creating assessment", "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -153,14 +181,21 @@ const ExamManagement = ({ user, students, courses, departments, assessments, set
               const toSave = sessionStudents.map(s => {
                 const input = document.getElementById(`mark-${s.id || s.dbID}`);
                 const remark = document.getElementById(`remark-${s.id || s.dbID}`);
+                const val = input.value === '' ? null : parseFloat(input.value);
+                
                 return {
                   assessment_id: selAsst.id,
                   student_id: s.id || s.dbID,
-                  obtained_marks: input.value === '' ? null : parseFloat(input.value),
+                  obtained_marks: isNaN(val) ? null : val,
                   remarks: remark.value,
                   submitted_at: new Date().toISOString()
                 };
               });
+              
+              // Basic validation: Check if any marks exceed total
+              const invalid = toSave.find(m => m.obtained_marks > selAsst.totalMarks);
+              if (invalid) return notify("Some entries exceed total marks", "error");
+
               handleSaveMarks(toSave);
             }} disabled={isSaving}>{isSaving ? 'Synchronizing...' : 'Commit Changes'}</button>
           </div>
@@ -211,6 +246,9 @@ const ExamManagement = ({ user, students, courses, departments, assessments, set
                   </tr>
                 );
               })}
+              {sessionStudents.length === 0 && (
+                <tr><td colSpan="4" style={{textAlign:'center', padding:'40px', opacity:0.5}}>No students currently enrolled in this section.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -218,6 +256,7 @@ const ExamManagement = ({ user, students, courses, departments, assessments, set
     );
   };
 
+  const renderSummary = () => {
     return (
       <div className="fade-in">
         <div className="card mb-24" style={{padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -300,7 +339,7 @@ const ExamManagement = ({ user, students, courses, departments, assessments, set
         <div style={{flex: 1}}>
           <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.5, display: 'block', marginBottom: '4px'}}>COURSE</label>
           <select className="input-premium" value={selCourse} onChange={e => { setSelCourse(e.target.value); setSelSection(''); }} disabled={!selDept}>
-            <option value="">Select Course</option>
+            <option value="">{filteredCourses.length > 0 ? "Select Course" : "No Courses Assigned"}</option>
             {filteredCourses.map(c => <option key={c.courseID} value={c.courseID}>{c.courseID}: {c.courseName}</option>)}
           </select>
         </div>
@@ -312,12 +351,87 @@ const ExamManagement = ({ user, students, courses, departments, assessments, set
           </select>
         </div>
         <div style={{display: 'flex', gap: '8px', paddingTop: '18px'}}>
-           <button className={activeView === 'overview' ? 'btn-primary-premium' : 'btn-text-only'} onClick={() => setActiveView('overview')} disabled={!isSelectionComplete}>Overview</button>
-           <button className={activeView === 'summary' ? 'btn-primary-premium' : 'btn-text-only'} onClick={() => setActiveView('summary')} disabled={!isSelectionComplete}>Matrix</button>
+           <button className={activeView === 'overview' ? 'btn-primary-premium' : 'btn-text-only'} onClick={() => setActiveView('overview')} disabled={!isSelectionComplete}>Evaluation Hub</button>
+           <button className={activeView === 'summary' ? 'btn-primary-premium' : 'btn-text-only'} onClick={() => setActiveView('summary')} disabled={!isSelectionComplete}>Performance Matrix</button>
         </div>
       </div>
 
-      {!isSelectionComplete ? (
+      {/* NEW: PDF Schedule Hub */}
+      <div className="card mb-32" style={{
+        background: 'var(--color-ink)', 
+        color: 'white', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        padding: '20px 32px'
+      }}>
+        <div>
+          <h3 style={{color: 'white', margin: 0, fontSize: '18px'}}>Official Institutional Date Sheet (PDF)</h3>
+          <p style={{margin: '4px 0 0 0', opacity: 0.7, fontSize: '12px'}}>Access the master examination schedule as published by the Registrar's Office.</p>
+        </div>
+        <div style={{display: 'flex', gap: '12px'}}>
+          {exams.some(e => e.type === 'pdf_schedule') ? (
+            <button className="btn-primary-premium" style={{background: 'var(--color-accent)', color: 'var(--color-ink)'}} 
+              onClick={() => window.open(exams.find(e => e.type === 'pdf_schedule').fileURL, '_blank')}>
+              📄 VIEW OFFICIAL PDF
+            </button>
+          ) : (
+             <span style={{fontSize: '11px', opacity: 0.5, fontStyle: 'italic'}}>No PDF Schedule Uploaded</span>
+          )}
+          
+          {user.role === 'Admin' && (
+            <button className="btn-outline" style={{borderColor: 'rgba(255,255,255,0.3)', color: 'white'}} onClick={() => openForm('upload_exam_pdf')}>
+              {exams.some(e => e.type === 'pdf_schedule') ? '🔄 UPDATE PDF' : '📤 UPLOAD PDF'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {exams.length > 0 && !selCourse ? (
+        <div className="fade-in">
+          <div className="view-header-premium">
+            <div>
+              <h1>Institutional Date Sheet</h1>
+              <p>Master schedule for Midterm & Terminal assessments.</p>
+            </div>
+            {user.role === 'Admin' && <button className="btn-primary-premium" onClick={() => openForm('exam')}>+ Schedule New Exam</button>}
+          </div>
+          
+          <div className="table-card-premium glass-card p-0">
+            <table className="premium-table">
+              <thead>
+                <tr>
+                  <th>Course Code</th>
+                  <th>Assessment Type</th>
+                  <th>Scheduled Date</th>
+                  <th>Venue</th>
+                  <th>Invigilator</th>
+                  {user.role === 'Admin' && <th>Registry Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {exams.map((e, idx) => (
+                  <tr key={`exam-row-${idx}-${e.id || 'new'}`}>
+                    <td data-label="Course Code" className="font-monospace" style={{fontWeight: 700}}>{e.courseID}</td>
+                    <td data-label="Assessment Type"><span className={`badge-premium ${e.type === 'Final' ? 'badge-primary' : 'badge-gold'}`}>{(e.type || 'Exam').toUpperCase()}</span></td>
+                    <td data-label="Schedule Date" className="font-monospace">{e.date} — {e.time}</td>
+                    <td data-label="Assigned Venue">{e.venue}</td>
+                    <td data-label="Invigilator">{e.invigilator || 'TBA'}</td>
+                    {user.role === 'Admin' && (
+                      <td data-label="Actions">
+                        <div style={{display: 'flex', gap: '8px'}}>
+                          <button className="btn-text-only" style={{color: 'var(--color-accent)'}} onClick={() => openForm('exam', e)}>Edit</button>
+                          <button className="btn-text-only" style={{color: 'var(--color-danger)'}} onClick={() => handleDelete(setExams, e.id, 'Exam Schedule', 'id')}>Remove</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : !isSelectionComplete ? (
         <div className="empty-state card" style={{padding: '100px 40px'}}>
           <div className="empty-state-icon">🔒</div>
           <h2>Pedagogical Repository Locked</h2>
@@ -364,5 +478,6 @@ const ExamManagement = ({ user, students, courses, departments, assessments, set
       )}
     </div>
   );
+};
 
 export default ExamManagement;

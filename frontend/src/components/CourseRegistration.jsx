@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const CourseRegistration = ({ courses, enrolments, setEnrolments, user, results, notify, finance, adminOverrides }) => {
+const CourseRegistration = ({ courses, enrolments, setEnrolments, user, results, notify, finance, adminOverrides, feePayments }) => {
   const [selectedCourse, setSelectedCourse] = useState(null);
 
   const studentEnrolments = enrolments.filter(e => e.studentID === user.id || e.studentID === user.dbID);
@@ -22,8 +22,18 @@ const CourseRegistration = ({ courses, enrolments, setEnrolments, user, results,
   );
 
   const hasOverride = !!(override && override.registrationAllowed);
-  // Default to false (Blocked) if no record found for S003 specifically, or if dueAmount > 0
-  const isFinanceCleared = studentFinance ? (studentFinance.dueAmount === 0) : (user.id !== 'S003');
+  // Calculate real-time balance
+  const studentTotalFee = studentFinance?.totalFee || studentFinance?.dueAmount || 0;
+  const studentPayments = (feePayments || []).filter(p => 
+    p.studentID === user.id || 
+    p.studentID === user.dbID || 
+    p.studentID === user.regNumber
+  );
+  const totalReceived = studentPayments.reduce((sum, p) => sum + (parseFloat(p.amountPaid) || 0), 0);
+  const currentBalance = Math.max(0, studentTotalFee - totalReceived);
+
+  // Default to false (Blocked) if no record found for S003 specifically, or if balance > 0
+  const isFinanceCleared = studentFinance ? (currentBalance === 0) : (user.id !== 'S003');
 
 
   const handleRegister = (course) => {
@@ -31,6 +41,12 @@ const CourseRegistration = ({ courses, enrolments, setEnrolments, user, results,
     if (!isFinanceCleared && !hasOverride) {
         notify("Registration Blocked: Outstanding fee balance detected. Contact Admin to unlock your portal.", "error");
         return;
+    }
+
+    // 1.5 Duplicate Check
+    if (enrolledCourseIDs.includes(course.courseID)) {
+      notify("Already enrolled in this course cycle.", "error");
+      return;
     }
 
     // 2. Prerequisite Check
@@ -58,6 +74,7 @@ const CourseRegistration = ({ courses, enrolments, setEnrolments, user, results,
   };
 
   const handleDrop = (courseID) => {
+    if (!window.confirm(`Warning: Are you sure you want to drop ${courseID}? This will remove it from your current semester plan.`)) return;
     setEnrolments(prev => prev.filter(e => !(e.studentID === user.id && e.courseID === courseID)));
     notify(`Dropped ${courseID} from your semester plan.`);
   };

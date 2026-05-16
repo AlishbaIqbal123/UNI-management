@@ -26,18 +26,15 @@ const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick, isOpen,
     { id: 'faculty', label: 'Faculty', icon: icons.faculty, access: [ROLES.ADMIN] },
     { id: 'departments', label: 'Departments', icon: icons.dept, access: [ROLES.ADMIN] },
     { id: 'catalog', label: 'Course Catalog', icon: icons.catalog, access: [ROLES.ADMIN] },
-    {id: 'enrolments', label: 'Registration Prep', icon: icons.enrol, access: [ROLES.ADMIN] },
+    { id: 'enrolments', label: 'Registration Prep', icon: icons.enrol, access: [ROLES.ADMIN] },
     { id: 'results', label: 'Results Catalog', icon: icons.result, access: [ROLES.ADMIN] },
     { id: 'overrides', label: 'Admin Overrides', icon: icons.enrol, access: [ROLES.ADMIN] },
     { id: 'blocked-audit', label: 'Blocked Students', icon: icons.report, access: [ROLES.ADMIN] },
     { id: 'timetable', label: 'Timetable Mgt', icon: icons.calendar, access: [ROLES.ADMIN] },
     { id: 'finance', label: 'Financial Hub', icon: icons.financial, access: [ROLES.ADMIN, ROLES.FINANCE] },
     { id: 'exams', label: 'Exam Schedule', icon: icons.result, access: [ROLES.ADMIN, ROLES.STUDENT, ROLES.FACULTY] },
-
     { id: 'notices', label: 'Announcements', icon: icons.report, access: [ROLES.ADMIN, ROLES.STUDENT, ROLES.FACULTY, ROLES.FINANCE] },
     { id: 'calendar', label: 'Academic Calendar', icon: icons.dashboard, access: [ROLES.ADMIN, ROLES.STUDENT, ROLES.FACULTY, ROLES.FINANCE] },
-
-
     { id: 'registration', label: 'Registration', icon: icons.catalog, access: [ROLES.STUDENT] },
     { id: 'academic-progress', label: 'My Progress', icon: icons.attendance, access: [ROLES.STUDENT] },
     { id: 'my-results', label: 'My Results', icon: icons.result, access: [ROLES.STUDENT] },
@@ -47,51 +44,61 @@ const Sidebar = ({ activeTab, setActiveTab, user, onLogout, onHomeClick, isOpen,
     { id: 'faculty-timetable', label: 'My Timetable', icon: icons.calendar, access: [ROLES.FACULTY] },
     { id: 'grading', label: 'Grading', icon: icons.result, access: [ROLES.FACULTY] },
     { id: 'profile', label: 'Profile Settings', icon: icons.student, access: [ROLES.STUDENT, ROLES.FACULTY, ROLES.FINANCE] },
-
   ].filter(i => !i.access || (user && i.access.includes(user.role)));
 
-
   return (
-    <aside className={`sidebar premium-sidebar ${isOpen ? 'open' : ''}`}>
-      <div className="logo-container" onClick={onHomeClick} style={{cursor: 'pointer', display:'flex', alignItems:'center', gap:'12px'}}>
-        <img src="https://crystalpng.com/wp-content/uploads/2022/02/COMSATS-University-logo.png" alt="COMSATS" style={{width:'40px', height:'40px', objectFit:'contain'}} />
-        <div className="logo-text-stack">
-          <span className="logo-text-top" style={{fontWeight: 800}}>COMSATS</span>
-          <span className="logo-text-bottom" style={{color: 'var(--accent)'}}>University</span>
+    <div className={`sidebar ${isOpen ? 'open' : ''}`}>
+      <div className="sidebar-header">
+        <div style={{display:'flex', alignItems:'center', gap:'10px', flex:1}} onClick={onHomeClick}>
+          <img 
+            className="sidebar-logo"
+            src="https://crystalpng.com/wp-content/uploads/2022/02/COMSATS-University-logo.png" 
+            alt="COMSATS" 
+          />
+          <div>
+            <div className="sidebar-brand-name">COMSATS</div>
+            <div className="sidebar-brand-sub">University</div>
+          </div>
         </div>
+        
+        {/* Close Button for Mobile */}
+        <button className="mobile-close-btn" onClick={() => setActiveTab('toggle-sidebar-collapse')}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
-      <nav className="nav-menu">
-        <div className="nav-group-label">Main Menu</div>
+
+      <div className="nav-section-label">Main Menu</div>
+
+      <nav className="nav-list">
         {sidebarItems.map(i => (
-          <div 
+          <button 
             key={i.id} 
             onClick={() => setActiveTab(i.id)} 
-            className={`nav-item-premium ${activeTab === i.id ? 'active' : ''}`}
+            className={`nav-item ${activeTab === i.id ? 'active' : ''}`}
           >
-            <div className="nav-icon-wrapper">{i.icon}</div>
-            <span className="nav-label">{i.label}</span>
-            {activeTab === i.id && <div className="active-indicator" />}
-          </div>
+            {i.icon}
+            {i.label}
+          </button>
         ))}
       </nav>
-      <div className="sidebar-footer">
-        <div className="nav-item-premium" onClick={toggleTheme} style={{marginBottom:'8px'}}>
-          <div className="nav-icon-wrapper">
-            {theme === 'dark' ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            )}
-          </div>
-          <span className="nav-label">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-        </div>
-        <div className="nav-item-premium logout" onClick={onLogout}>
-          <div className="nav-icon-wrapper">{icons.logout}</div>
-          <span className="nav-label">Sign Out</span>
-        </div>
+
+      <div className="sidebar-bottom">
+        <button className="nav-item" onClick={toggleTheme}>
+          {theme === 'dark' ? (
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          ) : (
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+          )}
+          {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+        </button>
+        <button className="nav-item nav-item-signout" onClick={onLogout}>
+          {icons.logout}
+          Sign Out
+        </button>
       </div>
-    </aside>
+    </div>
   );
 };
+
 
 export default Sidebar;

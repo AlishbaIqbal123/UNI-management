@@ -16,14 +16,14 @@ const CourseManagement = ({ courses, setCourses, faculty, enrolments, user, open
   };
 
   return (
-    <div className="view-container fade-in">
-      <div className="view-header-premium">
+    <div className="view-container">
+      <div className="page-header" style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
         <div>
           <h1>Academic Course Catalog</h1>
-          <p>Official registry of university-approved pedagogical offerings and instructor assignments.</p>
+          <p className="page-subtitle">Official registry of university-approved pedagogical offerings and instructor assignments.</p>
         </div>
         {isRegistrar && (
-          <button className="btn-primary-premium" onClick={() => openForm('course')}>
+          <button className="btn-primary" onClick={() => openForm('course')}>
             + Commission New Course
           </button>
         )}
@@ -43,13 +43,13 @@ const CourseManagement = ({ courses, setCourses, faculty, enrolments, user, open
           <tbody>
             {courses.map(c => (
               <tr key={c.courseID}>
-                <td>
+                <td data-label="Course Information">
                   <div style={{display:'flex', flexDirection:'column'}}>
                     <span style={{fontWeight:600}}>{c.courseName}</span>
                     <span className="font-monospace" style={{fontSize:'10px', opacity:0.6}}>{c.courseID}</span>
                   </div>
                 </td>
-                <td>
+                <td data-label="Academic Lecturer">
                   <div className="faculty-assignment-cell">
                      <span style={{fontSize:'13px', fontWeight:600}}>{getFacultyName(c.assignedFacultyID)}</span>
                      {isRegistrar && (
@@ -63,7 +63,7 @@ const CourseManagement = ({ courses, setCourses, faculty, enrolments, user, open
                      )}
                   </div>
                 </td>
-                <td className="text-center">
+                <td data-label="Enrolled" className="text-center">
                   <button 
                     className="badge-premium badge-gold" 
                     style={{cursor:'pointer', border:'none', fontWeight:800}}
@@ -72,8 +72,8 @@ const CourseManagement = ({ courses, setCourses, faculty, enrolments, user, open
                     {getStudentCount(c.courseID)} STUDENTS
                   </button>
                 </td>
-                <td><span className="badge-premium badge-primary">{c.credits} CR.HRS</span></td>
-                <td className="text-right">
+                <td data-label="Credit Logic"><span className="badge-premium badge-primary">{c.credits} CR.HRS</span></td>
+                <td data-label="Administrative" className="text-right">
                   <div style={{display:'flex', gap:'8px', justifyContent:'flex-end'}}>
                     <button className="btn-icon-premium" onClick={() => openForm('course_roster', c)} title="View Student Roster">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>

@@ -32,13 +32,14 @@ const TimetableManagement = ({ uploads, setUploads, setEntries }) => {
 
         const { data: uploadData, error: uploadError } = await supabase.from('timetable_uploads').insert([{
           file_url: fileUrl,
+          storage_path: fileName,
           type,
           semester_label: semesterLabel
         }]).select();
 
         if (uploadError) throw uploadError;
         uploadId = uploadData[0].id;
-        setUploads(prev => [...prev, { id: uploadId, fileURL: fileUrl, type, semesterLabel, uploadedAt: new Date() }]);
+        setUploads(prev => [...prev, { id: uploadId, fileURL: fileUrl, storagePath: fileName, type, semesterLabel, uploadedAt: new Date() }]);
       } else {
         // Local only fallback
         uploadId = Date.now().toString();
@@ -77,44 +78,88 @@ const TimetableManagement = ({ uploads, setUploads, setEntries }) => {
       const isTeacher = pageTitle.toLowerCase().includes('teacher');
       const ownerLabel = isTeacher ? pageTitle.replace(/Teacher\s+/i, '').trim() : pageTitle.trim();
 
-      // Simple grid parsing logic
-      // In a real scenario, this would involve complex coordinate mapping.
-      // Here we group items by Y (rows) and X (columns)
-      const rows = {};
+      // Heuristic parsing:
+      // 1. Identify Y-coordinates for Days
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+      const dayYMap = {};
+      
       items.forEach(item => {
-        const y = Math.round(item.transform[5] / 10) * 10;
-        if (!rows[y]) rows[y] = [];
-        rows[y].push(item);
+        const foundDay = days.find(d => item.str.includes(d));
+        if (foundDay) {
+          dayYMap[foundDay] = item.transform[5];
+        }
       });
 
-      const sortedYs = Object.keys(rows).sort((a, b) => b - a);
+      // 2. Identify X-coordinates for Slots (approximate columns)
+      // Standard slot times (based on common university formats)
+      const slotThresholds = [200, 300, 400, 500, 600, 700]; // Example X offsets
       
-      // Days of the week
-      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+      // 3. Process items into entries
+      const grid = {}; // day -> slot -> [items]
       
-      // Mocking the extraction since real PDF table extraction is extremely varied.
-      // We'll simulate finding 6 slots across days.
-      days.forEach(day => {
-          for (let slot = 1; slot <= 6; slot++) {
-              // Only create entries for non-empty looking cells
-              // In a real app, we'd check coordinates matching the grid
-              if (Math.random() > 0.4) { // Simulate some populated cells
-                  allEntries.push({
-                      upload_id: uploadId,
-                      timetable_type: isTeacher ? 'teacher' : 'student',
-                      owner_label: ownerLabel,
-                      day,
-                      slot_number: slot,
-                      time_label: getTimeLabel(slot),
-                      subject: isTeacher ? 'Cloud Computing' : 'Discrete Structures',
-                      room_code: 'CR-12',
-                      instructor: isTeacher ? '' : 'Dr. Nasir',
-                      batch_section: isTeacher ? 'BCS-FA24-4B' : '',
-                      session_type: Math.random() > 0.8 ? 'lab' : 'class',
-                      span: 1
-                  });
-              }
+      items.forEach(item => {
+        // Skip header/footer and title
+        if (item.transform[5] > titleItem.transform[5] - 20) return;
+        if (item.str.toLowerCase().includes('break')) return; // Step 4: Skip "Break"
+
+        // Find nearest day
+        let nearestDay = null;
+        let minDist = 20;
+        days.forEach(day => {
+           if (dayYMap[day]) {
+             const dist = Math.abs(item.transform[5] - dayYMap[day]);
+             if (dist < minDist) {
+               minDist = dist;
+               nearestDay = day;
+             }
+           }
+        });
+
+        if (!nearestDay) return;
+
+        // Find slot index based on X
+        const x = item.transform[4];
+        let slotIndex = -1;
+        for (let s = 0; s < slotThresholds.length; s++) {
+          if (x < slotThresholds[s]) {
+             slotIndex = s + 1;
+             break;
           }
+        }
+
+        if (slotIndex === -1) return;
+
+        if (!grid[nearestDay]) grid[nearestDay] = {};
+        if (!grid[nearestDay][slotIndex]) grid[nearestDay][slotIndex] = [];
+        grid[nearestDay][slotIndex].push(item.str);
+      });
+
+      // 4. Finalize entries from grid
+      Object.keys(grid).forEach(day => {
+        Object.keys(grid[day]).forEach(slotStr => {
+          const slot = parseInt(slotStr);
+          const cellText = grid[day][slot].join(' ').trim();
+          if (cellText.length < 3) return;
+
+          // Step 4 rules:
+          const isLab = cellText.toLowerCase().includes('-lab');
+          const hasSpan = cellText.toLowerCase().includes('(2h)') || cellText.length > 50; // Heuristic for span
+
+          allEntries.push({
+            upload_id: uploadId,
+            timetable_type: isTeacher ? 'teacher' : 'student',
+            owner_label: ownerLabel,
+            day,
+            slot_number: slot,
+            time_label: getTimeLabel(slot),
+            subject: cellText.split('\n')[0].substring(0, 30),
+            room_code: cellText.match(/[A-Z]+-\d+/)?.[0] || 'TBD',
+            instructor: isTeacher ? '' : (cellText.match(/Dr\.\s\w+|Prof\.\s\w+/)?.[0] || 'Faculty'),
+            batch_section: isTeacher ? (cellText.match(/[A-Z]+-[A-Z0-9-]+/)?.[0] || 'N/A') : '',
+            session_type: isLab ? 'lab' : 'class',
+            span: hasSpan ? 2 : 1
+          });
+        });
       });
     }
 
@@ -136,12 +181,24 @@ const TimetableManagement = ({ uploads, setUploads, setEntries }) => {
     return slots[slot - 1];
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (upload) => {
+    if (!window.confirm("Permanent Action: This will remove the document and all associated grid entries. Continue?")) return;
+    
     if (isDatabaseConnected()) {
-      await supabase.from('timetable_uploads').delete().eq('id', id);
+      try {
+        // Delete from storage
+        if (upload.storagePath) {
+          await supabase.storage.from('timetables').remove([upload.storagePath]);
+        }
+        // Delete from DB (entries will cascade delete if foreign key set to CASCADE)
+        await supabase.from('timetable_uploads').delete().eq('id', upload.id);
+      } catch (err) {
+        console.error('Delete Error:', err);
+        return alert("Failed to delete record from cloud storage.");
+      }
     }
-    setUploads(prev => prev.filter(u => u.id !== id));
-    setEntries(prev => prev.filter(e => e.upload_id !== id));
+    setUploads(prev => prev.filter(u => u.id !== upload.id));
+    setEntries(prev => prev.filter(e => e.upload_id !== upload.id));
   };
 
   return (
@@ -186,10 +243,12 @@ const TimetableManagement = ({ uploads, setUploads, setEntries }) => {
         <div style={{padding: '24px', borderBottom: '1px solid var(--color-border)'}}>
           <h2>Uploaded Timetables</h2>
         </div>
-        <table>
+        <div className="table-wrapper">
+          <table className="premium-table min-w-table">
           <thead>
             <tr>
               <th>Semester</th>
+              <th>Registry File</th>
               <th>Type</th>
               <th>Upload Date</th>
               <th className="text-right">Actions</th>
@@ -199,18 +258,24 @@ const TimetableManagement = ({ uploads, setUploads, setEntries }) => {
             {uploads.map(u => (
               <tr key={u.id}>
                 <td>{u.semesterLabel}</td>
+                <td>
+                  <a href={u.fileURL} target="_blank" rel="noreferrer" style={{fontSize:'12px', color:'var(--color-accent)', textDecoration:'underline'}}>
+                    View Document
+                  </a>
+                </td>
                 <td><span style={{textTransform: 'capitalize'}}>{u.type}</span></td>
                 <td>{new Date(u.uploadedAt).toLocaleDateString()}</td>
                 <td className="text-right">
-                  <button className="btn-text-only" style={{color: 'var(--color-danger)'}} onClick={() => handleDelete(u.id)}>Delete</button>
+                  <button className="btn-text-only" style={{color: 'var(--color-danger)'}} onClick={() => handleDelete(u)}>Delete</button>
                 </td>
               </tr>
             ))}
             {uploads.length === 0 && (
-                <tr><td colSpan="4" style={{textAlign:'center', opacity:0.5, padding:'40px'}}>No timetables uploaded yet.</td></tr>
+                <tr><td colSpan="5" style={{textAlign:'center', opacity:0.5, padding:'40px'}}>No timetables uploaded yet.</td></tr>
             )}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );

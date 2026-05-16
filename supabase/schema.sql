@@ -1,4 +1,4 @@
-# Supabase Database Schema - University Management OS
+-- Supabase Database Schema - University Management OS
 
 -- 1. Enable RLS (Row Level Security) functions & extensions if needed
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

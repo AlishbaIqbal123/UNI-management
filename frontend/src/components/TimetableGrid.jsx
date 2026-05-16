@@ -23,8 +23,15 @@ const TimetableGrid = ({ entries, title }) => {
         <p>Weekly academic schedule for the current semester.</p>
       </div>
 
-      <div className="table-wrapper card" style={{padding: '0'}}>
-        <table className="timetable-grid min-w-table" style={{width: '100%', borderCollapse: 'collapse'}}>
+      {entries.length === 0 ? (
+        <div className="empty-state card" style={{padding: '60px', textAlign: 'center'}}>
+          <div className="empty-state-icon">📅</div>
+          <h2>Timetable Not Published</h2>
+          <p>The institutional schedule for this semester has not been finalized or published yet. Please check back later or contact the Department Hub.</p>
+        </div>
+      ) : (
+        <div className="table-wrapper card" style={{padding: '0', overflowX: 'auto'}}>
+          <table className="timetable-grid min-w-table" style={{width: '100%', borderCollapse: 'collapse'}}>
           <thead>
             <tr>
               <th style={{
@@ -59,41 +66,55 @@ const TimetableGrid = ({ entries, title }) => {
                   background: 'var(--color-bg)',
                   textAlign: 'center'
                 }}>{day}</td>
-                {slots.map(slot => {
-                  const entry = getEntry(day, slot);
-                  const isLab = entry?.session_type === 'lab';
+                {(() => {
+                  const cells = [];
+                  let skipCount = 0;
                   
-                  return (
-                    <td key={slot} style={{
-                      padding: '12px', 
-                      border: '1px solid var(--color-border)',
-                      verticalAlign: 'top',
-                      minHeight: '80px',
-                      width: '150px',
-                      background: isLab ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)' : 'transparent'
-                    }}>
-                      {entry ? (
-                        <div style={{fontSize: '12px'}}>
-                          <div style={{fontWeight: 700, marginBottom: '4px', lineHeight: 1.2}}>
-                            {entry.subject}
-                            {isLab && <span style={{color: 'var(--color-accent)', marginLeft: '4px'}}>[LAB]</span>}
+                  for (let s = 1; s <= slots.length; s++) {
+                    if (skipCount > 0) {
+                      skipCount--;
+                      continue;
+                    }
+
+                    const entry = getEntry(day, s);
+                    const isLab = entry?.session_type === 'lab';
+                    const span = entry?.span || 1;
+                    if (span > 1) skipCount = span - 1;
+                    
+                    cells.push(
+                      <td key={s} colSpan={span} style={{
+                        padding: '12px', 
+                        border: '1px solid var(--color-border)',
+                        verticalAlign: 'top',
+                        minHeight: '80px',
+                        width: `${150 * span}px`,
+                        background: isLab ? 'color-mix(in srgb, var(--color-accent) 15%, transparent)' : 'transparent'
+                      }}>
+                        {entry ? (
+                          <div style={{fontSize: '12px'}}>
+                            <div style={{fontWeight: 700, marginBottom: '4px', lineHeight: 1.2}}>
+                              {entry.subject}
+                              {isLab && <span style={{color: 'var(--color-accent)', marginLeft: '4px'}}>[LAB]</span>}
+                            </div>
+                            <div style={{opacity: 0.7, marginBottom: '2px'}}>Room: {entry.room_code}</div>
+                            <div style={{fontSize: '11px', fontWeight: 600}}>
+                              {entry.instructor || entry.batch_section}
+                            </div>
                           </div>
-                          <div style={{opacity: 0.7, marginBottom: '2px'}}>Room: {entry.room_code}</div>
-                          <div style={{fontSize: '11px', fontWeight: 600}}>
-                            {entry.instructor || entry.batch_section}
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{opacity: 0.2, textAlign: 'center', fontSize: '10px'}}>--</div>
-                      )}
-                    </td>
-                  );
-                })}
+                        ) : (
+                          <div style={{opacity: 0.2, textAlign: 'center', fontSize: '10px'}}>--</div>
+                        )}
+                      </td>
+                    );
+                  }
+                  return cells;
+                })()}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      )}
       
       <div style={{marginTop: '24px', fontSize: '12px', opacity: 0.6}}>
         <div style={{display: 'flex', gap: '16px', alignItems: 'center'}}>

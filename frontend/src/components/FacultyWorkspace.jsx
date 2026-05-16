@@ -26,13 +26,24 @@ const FacultyWorkspace = ({
     topic: ''
   });
   const [tempAttendance, setTempAttendance] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
 
   // Get students for setup
   const sessionEnrolments = enrolments.filter(e => e.courseID === sessionSetup.course_id && e.status === 'Confirmed');
   const sessionStudents = students.filter(s => sessionEnrolments.some(e => e.studentID === s.id || e.studentID === s.dbID));
 
   const startAttendance = () => {
-    if (!sessionSetup.course_id || !sessionSetup.section) return notify("Please select course and section", "error");
+    if (!sessionSetup.course_id || !sessionSetup.section || !sessionSetup.session_type) return notify("Please select course, section and type", "error");
+    if (sessionStudents.length === 0) return notify("No students enrolled in this section", "error");
+
+    // Check for duplicate session today
+    const exists = sessions.some(s => 
+      s.course_id === sessionSetup.course_id && 
+      s.section === sessionSetup.section && 
+      s.session_type === sessionSetup.session_type && 
+      s.session_date === sessionSetup.session_date
+    );
+    if (exists && !confirm("Attendance for this specific session already exists in the journal. Duplicate entry?")) return;
     
     // Initialize all as absent
     const initial = {};
@@ -42,6 +53,8 @@ const FacultyWorkspace = ({
   };
 
   const saveAttendance = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     const sessionData = {
       ...sessionSetup,
       conducted_by: user.id || user.dbID
@@ -80,7 +93,9 @@ const FacultyWorkspace = ({
       setSessionSetup(prev => ({ ...prev, topic: '' }));
     } catch (err) {
       console.error(err);
-      notify("Error saving attendance", "error");
+      notify(err.message || "Error saving attendance", "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -102,7 +117,7 @@ const FacultyWorkspace = ({
       <div className="view-header-premium">
         <div>
           <h1>Faculty Workspace</h1>
-          <p>{selectedCourse ? `Managing: ${selectedCourse}` : 'Select a course to begin management.'}</p>
+          <p>{selectedCourse ? `Managing: ${selectedCourse}` : (myCourses.length > 0 ? 'Select a course to begin management.' : 'No institutional courses assigned to your ID.')}</p>
         </div>
         <div style={{display:'flex', gap:'12px', alignItems:'center'}}>
           <select className="input-premium" style={{width:'180px', height:'44px'}} value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}>
@@ -237,6 +252,9 @@ const FacultyWorkspace = ({
                         </td>
                       </tr>
                     ))}
+                    {sessionStudents.length === 0 && (
+                      <tr><td colSpan="2" style={{textAlign:'center', opacity:0.5, padding:'40px'}}>No candidates found for this section audit.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -275,6 +293,9 @@ const FacultyWorkspace = ({
                     </tr>
                   );
                 })}
+                {sessions.filter(s => s.conducted_by === user.id || s.conducted_by === user.dbID).length === 0 && (
+                  <tr><td colSpan="6" style={{textAlign:'center', opacity:0.5, padding:'40px'}}>No sessions recorded yet in your journal.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -298,6 +319,9 @@ const FacultyWorkspace = ({
                     <td>{s.section}</td>
                   </tr>
                 ))}
+                {rosterStudents.length === 0 && (
+                  <tr><td colSpan="4" style={{textAlign:'center', opacity:0.5, padding:'40px'}}>No students confirmed for this course yet.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
