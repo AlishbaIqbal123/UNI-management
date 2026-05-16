@@ -104,7 +104,6 @@ const FacultyWorkspace = ({
     return {
       present: vals.filter(v => v === 'present').length,
       absent: vals.filter(v => v === 'absent').length,
-      late: vals.filter(v => v === 'late').length,
       total: vals.length
     };
   };
@@ -198,9 +197,8 @@ const FacultyWorkspace = ({
                 </div>
                 <div style={{display:'flex', gap:'24px', alignItems:'center'}}>
                   <div style={{display:'flex', gap:'12px', fontSize:'13px', fontWeight:600}}>
-                    <span style={{color:'var(--success)'}}>P: {getStats().present}</span>
+                    <span style={{color:'#10b981'}}>P: {getStats().present}</span>
                     <span style={{color:'#ef4444'}}>A: {getStats().absent}</span>
-                    <span style={{color:'#D47C0F'}}>L: {getStats().late}</span>
                     <span style={{opacity:0.5}}>Total: {getStats().total}</span>
                   </div>
                   <button className="btn-text-only" onClick={() => setTempAttendance(prev => {
@@ -232,7 +230,7 @@ const FacultyWorkspace = ({
                         </td>
                         <td className="text-right">
                           <div style={{display:'inline-flex', gap:'4px', background:'var(--color-bg-dim)', padding:'4px', borderRadius:'8px', border:'1px solid var(--color-border)'}}>
-                            {['present', 'absent', 'late'].map(status => (
+                            {['present', 'absent'].map(status => (
                               <button 
                                 key={status}
                                 className={tempAttendance[s.id || s.dbID] === status ? 'btn-primary-premium' : 'btn-text-only'}
@@ -240,7 +238,7 @@ const FacultyWorkspace = ({
                                   padding:'6px 12px', 
                                   fontSize:'11px', 
                                   borderRadius:'6px',
-                                  background: tempAttendance[s.id || s.dbID] === status ? (status === 'present' ? 'var(--success)' : status === 'absent' ? '#ef4444' : '#D47C0F') : 'transparent',
+                                  background: tempAttendance[s.id || s.dbID] === status ? (status === 'present' ? '#10b981' : '#ef4444') : 'transparent',
                                   color: tempAttendance[s.id || s.dbID] === status ? 'white' : 'inherit'
                                 }}
                                 onClick={() => setTempAttendance({...tempAttendance, [s.id || s.dbID]: status})}

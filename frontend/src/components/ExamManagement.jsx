@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase, isDatabaseConnected } from '../lib/supabase';
+import * as XLSX from 'xlsx';
 
 const ExamManagement = ({ 
   user, 
@@ -27,6 +28,21 @@ const ExamManagement = ({
   const [showAddAsst, setShowAddAsst] = useState(false);
   const [newAsst, setNewAsst] = useState({ type: 'quiz', title: '', total_marks: 0 });
 
+  // --- Excel Import State ---
+  const [activeTab, setActiveTab]         = useState('pdf');       // 'pdf' or 'excel'
+  const [selectedFile, setSelectedFile]   = useState(null);
+  const [semesterLabel, setSemesterLabel] = useState('');
+  const [parseLoading, setParseLoading]   = useState(false);
+  const [previewData, setPreviewData]     = useState(null);        // { dept: [...entries] }
+  const [activeDept, setActiveDept]       = useState('');
+  const [saving, setSaving]               = useState(false);
+  const [uploads, setUploads]             = useState([]);
+  const [viewingUpload, setViewingUpload] = useState(null);
+  const [viewEntries, setViewEntries]     = useState([]);
+  const [search, setSearch]               = useState('');
+  const [error, setError]                 = useState(null);
+  const [successMsg, setSuccessMsg]       = useState(null);
+
   // Filtering Logic
   const filteredCourses = courses.filter(c => {
     const facultyMatch = user.role === 'Admin' || c.assignedFacultyID === user.id || c.assignedFacultyID === user.dbID;
@@ -41,6 +57,245 @@ const ExamManagement = ({
   const currentAssessments = assessments.filter(a => a.courseID === selCourse && a.section === selSection);
   const courseEnrolments = enrolments.filter(e => e.courseID === selCourse && e.status === 'Confirmed');
   const sessionStudents = students.filter(s => courseEnrolments.some(e => e.studentID === s.id || e.studentID === s.dbID));
+
+  // --- Data Fetching ---
+  const fetchUploads = async () => {
+    if (!isDatabaseConnected()) return;
+    try {
+      const { data, error } = await supabase
+        .from('exam_schedule_uploads')
+        .select('*')
+        .order('uploaded_at', { ascending: false });
+      
+      if (error) {
+        if (error.code === 'PGRST205') {
+          console.warn("Exam schedule tables not found. Please run the migration: 20260516194000_exam_schedule_excel.sql");
+          return; // Silently fail but log warning
+        }
+        throw error;
+      }
+      setUploads(data || []);
+    } catch (err) {
+      console.error("Fetch Uploads Error:", err);
+    }
+  };
+
+  const fetchEntries = async (uploadId) => {
+    if (!isDatabaseConnected()) return;
+    try {
+      const { data, error } = await supabase
+        .from('exam_schedule_entries')
+        .select('*')
+        .eq('upload_id', uploadId)
+        .order('exam_date', { ascending: true });
+      if (error) throw error;
+      setViewEntries(data || []);
+    } catch (err) {
+      console.error("Fetch Entries Error:", err);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchUploads();
+  }, []);
+
+  React.useEffect(() => {
+    if (viewingUpload) {
+      if (viewingUpload.upload_type === 'excel') {
+        fetchEntries(viewingUpload.id);
+        setActiveDept('all');
+      }
+    }
+  }, [viewingUpload]);
+
+  // --- Drag & Drop ---
+  React.useEffect(() => {
+    if (user.role !== 'Admin' || activeTab !== 'excel') return;
+    const zone = document.getElementById('excel-drop-zone');
+    if (!zone) return;
+
+    const onDragOver = (e) => { e.preventDefault(); zone.classList.add('drag-over'); };
+    const onDragLeave = () => zone.classList.remove('drag-over');
+    const onDrop = (e) => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) processExcelFile(file);
+    };
+
+    zone.addEventListener('dragover', onDragOver);
+    zone.addEventListener('dragleave', onDragLeave);
+    zone.addEventListener('drop', onDrop);
+    return () => {
+      zone.removeEventListener('dragover', onDragOver);
+      zone.removeEventListener('dragleave', onDragLeave);
+      zone.removeEventListener('drop', onDrop);
+    };
+  }, [user.role, activeTab]);
+
+  // --- Excel Processing ---
+  const handleExcelFile = (e) => {
+    const file = e.target.files[0];
+    if (file) processExcelFile(file);
+  };
+
+  const processExcelFile = (file) => {
+    if (!file.name.match(/\.(xlsx|xls)$/i)) {
+      setError('Please upload a valid Excel file (.xlsx or .xls)');
+      return;
+    }
+    setParseLoading(true);
+    setError(null);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const parsed = parseWorkbook(workbook);
+        setPreviewData(parsed);
+        const depts = Object.keys(parsed);
+        if (depts.length > 0) setActiveDept(depts[0]);
+        setSelectedFile(file);
+      } catch (err) {
+        setError('Failed to read Excel file. Please check format.');
+      } finally {
+        setParseLoading(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const parseWorkbook = (workbook) => {
+    const departments = {};
+    const COLUMN_MAP = {
+      course_code:   ['course code', 'code', 'course no', 'course#', 'subject code'],
+      course_title:  ['course title', 'title', 'subject', 'course name', 'subject name', 'paper'],
+      exam_date:     ['date', 'exam date', 'examination date', 'day/date'],
+      exam_day:      ['day', 'exam day', 'weekday'],
+      start_time:    ['start time', 'from', 'time from', 'start', 'exam time', 'time'],
+      end_time:      ['end time', 'to', 'time to', 'end', 'finish'],
+      venue:         ['venue', 'room', 'hall', 'location', 'center', 'place'],
+      batch_section: ['section', 'batch', 'class', 'group', 'batch/section', 'section/batch'],
+      credit_hours:  ['credit hours', 'cr hrs', 'credits', 'cr.hrs', 'credit'],
+      remarks:       ['remarks', 'note', 'notes', 'comment', 'comments'],
+    };
+
+    const findColumn = (headerRow, fieldAliases) => {
+      const normalized = headerRow.map(h => String(h || '').toLowerCase().trim());
+      for (const alias of fieldAliases) {
+        const idx = normalized.findIndex(h => h.includes(alias));
+        if (idx !== -1) return idx;
+      }
+      return -1;
+    };
+
+    workbook.SheetNames.forEach(sheetName => {
+      const trimmed = sheetName.trim();
+      if (!trimmed || (trimmed.toLowerCase() === 'sheet1' && workbook.SheetNames.length > 1)) return;
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (rows.length < 2) return;
+
+      let headerRowIdx = 0;
+      for (let i = 0; i < Math.min(5, rows.length); i++) {
+        const nonEmpty = rows[i].filter(c => String(c).trim() !== '').length;
+        if (nonEmpty >= 3) { headerRowIdx = i; break; }
+      }
+
+      const headerRow = rows[headerRowIdx].map(h => String(h || '').toLowerCase().trim());
+      const colIdx = {};
+      Object.entries(COLUMN_MAP).forEach(([field, aliases]) => { colIdx[field] = findColumn(headerRow, aliases); });
+
+      const entries = [];
+      for (let i = headerRowIdx + 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (row.every(c => String(c).trim() === '')) continue;
+        const titleIdx = colIdx['course_title'];
+        if (titleIdx === -1 || !String(row[titleIdx] || '').trim()) continue;
+
+        const getVal = (field) => {
+          const idx = colIdx[field];
+          if (idx === -1) return '';
+          return String(row[idx] || '').trim();
+        };
+
+        let examDate = null;
+        const rawDate = colIdx['exam_date'] !== -1 ? row[colIdx['exam_date']] : null;
+        if (rawDate) {
+          if (rawDate instanceof Date) examDate = rawDate.toISOString().split('T')[0];
+          else if (typeof rawDate === 'number') {
+            const d = XLSX.SSF.parse_date_code(rawDate);
+            examDate = `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+          } else {
+            const parsed = new Date(rawDate);
+            if (!isNaN(parsed)) examDate = parsed.toISOString().split('T')[0];
+            else examDate = String(rawDate);
+          }
+        }
+
+        entries.push({
+          department: trimmed,
+          course_code: getVal('course_code'),
+          course_title: getVal('course_title'),
+          exam_date: examDate,
+          exam_day: getVal('exam_day'),
+          start_time: getVal('start_time'),
+          end_time: getVal('end_time'),
+          venue: getVal('venue'),
+          batch_section: getVal('batch_section'),
+          credit_hours: getVal('credit_hours'),
+          remarks: getVal('remarks'),
+        });
+      }
+      if (entries.length > 0) departments[trimmed] = entries;
+    });
+    return departments;
+  };
+
+  const saveSchedule = async () => {
+    if (!semesterLabel.trim()) return setError('Please enter a semester label.');
+    setSaving(true);
+    setError(null);
+    try {
+      if (isDatabaseConnected()) {
+        const { data: upload, error: uErr } = await supabase.from('exam_schedule_uploads').insert({
+          file_name: selectedFile.name, upload_type: 'excel', semester: semesterLabel.trim()
+        }).select().single();
+        
+        if (uErr) {
+          if (uErr.code === 'PGRST204' || uErr.code === 'PGRST205' || uErr.message.includes('not found')) {
+            throw new Error("Database tables not found. Please run the SQL migration first.");
+          }
+          throw uErr;
+        }
+
+        const allEntries = [];
+        Object.values(previewData).forEach(deptEntries => {
+          deptEntries.forEach(entry => { allEntries.push({ ...entry, upload_id: upload.id }); });
+        });
+
+        const BATCH = 100;
+        for (let i = 0; i < allEntries.length; i += BATCH) {
+          const { error: iErr } = await supabase.from('exam_schedule_entries').insert(allEntries.slice(i, i + BATCH));
+          if (iErr) throw iErr;
+        }
+      }
+      setSuccessMsg(`Synchronized ${Object.keys(previewData).length} departments successfully.`);
+      setPreviewData(null); setSelectedFile(null); setSemesterLabel('');
+      fetchUploads();
+    } catch (err) { setError(`Save failed: ${err.message}`); } finally { setSaving(false); }
+  };
+
+  const handleDeleteUpload = async (id) => {
+    if (!isDatabaseConnected()) return;
+    try {
+      const { error } = await supabase.from('exam_schedule_uploads').delete().eq('id', id);
+      if (error) throw error;
+      notify("Institutional Record Purged Successfully");
+      fetchUploads();
+    } catch (err) { notify(err.message, "error"); }
+  };
 
   const handleSaveMarks = async (marksToSave) => {
     setIsSaving(true);
@@ -356,36 +611,211 @@ const ExamManagement = ({
         </div>
       </div>
 
-      {/* NEW: PDF Schedule Hub */}
-      <div className="card mb-32" style={{
-        background: 'var(--color-ink)', 
-        color: 'white', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        padding: '20px 32px'
-      }}>
-        <div>
-          <h3 style={{color: 'white', margin: 0, fontSize: '18px'}}>Official Institutional Date Sheet (PDF)</h3>
-          <p style={{margin: '4px 0 0 0', opacity: 0.7, fontSize: '12px'}}>Access the master examination schedule as published by the Registrar's Office.</p>
-        </div>
-        <div style={{display: 'flex', gap: '12px'}}>
-          {exams.some(e => e.type === 'pdf_schedule') ? (
-            <button className="btn-primary-premium" style={{background: 'var(--color-accent)', color: 'var(--color-ink)'}} 
-              onClick={() => window.open(exams.find(e => e.type === 'pdf_schedule').fileURL, '_blank')}>
-              📄 VIEW OFFICIAL PDF
+      {/* NEW: PDF & Excel Schedule Hub */}
+      {viewingUpload ? (
+        <div className="schedule-view-page fade-in">
+          <div className="schedule-view-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px'}}>
+            <div>
+              <div style={{fontSize:'12px', opacity:0.6, marginBottom:'4px'}}>Exam Schedule / {viewingUpload.semester}</div>
+              <h2 style={{margin:0}}>{viewingUpload.semester} — Official Date Sheet</h2>
+              <p style={{margin:'4px 0 0 0', opacity:0.7, fontSize:'13px'}}>
+                {viewEntries.length} exams across {new Set(viewEntries.map(e => e.department)).size} department(s)
+              </p>
+            </div>
+            <button className="btn-primary-premium" onClick={() => setViewingUpload(null)}>← BACK TO HUB</button>
+          </div>
+
+          <div className="schedule-search mb-24">
+            <input 
+              className="input-premium" 
+              placeholder="Search by Course, Venue, or Section..." 
+              value={search} 
+              onChange={e => setSearch(e.target.value)}
+              style={{maxWidth: '400px'}}
+            />
+          </div>
+
+          <div className="dept-tabs-bar" style={{display:'flex', flexWrap:'wrap', gap:'8px', marginBottom:'24px', borderBottom:'1px solid var(--color-border)', paddingBottom:'16px'}}>
+            <button className={`dept-tab ${activeDept === 'all' ? 'active' : ''}`} onClick={() => setActiveDept('all')}>
+              All Departments <span className="dept-count" style={{marginLeft:'6px', opacity:0.6}}>{viewEntries.length}</span>
             </button>
-          ) : (
-             <span style={{fontSize: '11px', opacity: 0.5, fontStyle: 'italic'}}>No PDF Schedule Uploaded</span>
+            {[...new Set(viewEntries.map(e => e.department))].sort().map(dept => (
+              <button key={dept} className={`dept-tab ${activeDept === dept ? 'active' : ''}`} onClick={() => setActiveDept(dept)}>
+                {dept} <span className="dept-count" style={{marginLeft:'6px', opacity:0.6}}>{viewEntries.filter(e => e.department === dept).length}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="table-wrapper card" style={{padding:0}}>
+            <table className="premium-table">
+              <thead>
+                <tr>
+                  {activeDept === 'all' && <th>Dept</th>}
+                  <th>Course Code</th>
+                  <th>Course Title</th>
+                  <th>Date</th>
+                  <th>Day</th>
+                  <th>Time</th>
+                  <th>Venue</th>
+                  <th>Section</th>
+                  <th>Cr.Hrs</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {viewEntries
+                  .filter(e => activeDept === 'all' || e.department === activeDept)
+                  .filter(e => {
+                    if (!search.trim()) return true;
+                    const q = search.toLowerCase();
+                    return (e.course_title?.toLowerCase().includes(q) || e.course_code?.toLowerCase().includes(q) || e.venue?.toLowerCase().includes(q) || e.batch_section?.toLowerCase().includes(q));
+                  })
+                  .map((entry, i) => (
+                    <tr key={entry.id} className={i % 2 === 0 ? '' : 'row-alt'}>
+                      {activeDept === 'all' && <td data-label="Dept"><span className="badge-premium badge-primary">{entry.department}</span></td>}
+                      <td data-label="Code" style={{fontWeight:700}}>{entry.course_code || '—'}</td>
+                      <td data-label="Title" style={{fontWeight:600}}>{entry.course_title}</td>
+                      <td data-label="Date">{entry.exam_date ? new Date(entry.exam_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
+                      <td data-label="Day">{entry.exam_day || '—'}</td>
+                      <td data-label="Time"><strong>{entry.start_time}</strong> — {entry.end_time}</td>
+                      <td data-label="Venue">{entry.venue || '—'}</td>
+                      <td data-label="Section">{entry.batch_section || '—'}</td>
+                      <td data-label="Credits">{entry.credit_hours || '—'}</td>
+                      <td data-label="Remarks" style={{fontSize:'11px', opacity:0.7}}>{entry.remarks || '—'}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="card mb-32" style={{padding:0, overflow:'hidden'}}>
+            <div className="tabs-header" style={{display:'flex', background:'var(--color-ink)', padding:'0 24px'}}>
+               <button className={`tab-pill ${activeTab === 'pdf' ? 'active' : ''}`} onClick={() => setActiveTab('pdf')}>📄 PDF UPLOAD</button>
+               <button className={`tab-pill ${activeTab === 'excel' ? 'active' : ''}`} onClick={() => setActiveTab('excel')}>📊 EXCEL IMPORT</button>
+            </div>
+
+            <div style={{padding:'32px'}}>
+              {activeTab === 'pdf' ? (
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                   <div>
+                    <h3 style={{margin:0}}>Official PDF Schedule</h3>
+                    <p style={{margin:'4px 0 0 0', opacity:0.6, fontSize:'13px'}}>Access or update the master examination schedule in PDF format.</p>
+                   </div>
+                   <div style={{display:'flex', gap:'12px'}}>
+                     {exams.some(e => e.type === 'pdf_schedule') && (
+                        <button className="btn-primary-premium" onClick={() => window.open(exams.find(e => e.type === 'pdf_schedule').fileURL, '_blank')}>VIEW MASTER PDF</button>
+                     )}
+                     {user.role === 'Admin' && (
+                       <button className="btn-primary-premium" style={{background:'var(--color-accent)', color:'var(--color-ink)'}} onClick={() => openForm('upload_exam_pdf')}>
+                         {exams.some(e => e.type === 'pdf_schedule') ? 'UPDATE PDF' : 'UPLOAD PDF'}
+                       </button>
+                     )}
+                   </div>
+                </div>
+              ) : (
+                <div className="excel-import-panel">
+                  <div className="import-instructions mb-24">
+                    <h3>Excel-Driven Institutional Scheduling</h3>
+                    <p style={{fontSize:'13px', opacity:0.8}}>Upload an Excel workbook where each sheet corresponds to a department (CS, EE, BBA etc.).</p>
+                    <div className="column-guide mt-12" style={{display:'flex', flexWrap:'wrap', gap:'6px'}}>
+                       {['Course Code', 'Course Title', 'Date', 'Day', 'Start Time', 'End Time', 'Venue', 'Section', 'Cr.Hrs'].map(c => <span key={c} className="badge-premium" style={{background:'var(--color-border)', opacity:0.7}}>{c}</span>)}
+                    </div>
+                  </div>
+
+                  {user.role === 'Admin' && (
+                    <>
+                      <div className="upload-zone" id="excel-drop-zone" style={{border:'2px dashed var(--color-border)', borderRadius:'8px', padding:'40px', textAlign:'center', cursor:'pointer', marginBottom:'24px', transition:'all 0.2s'}}>
+                        <div style={{fontSize:'40px', marginBottom:'12px'}}>📊</div>
+                        <p style={{fontWeight:600, margin:0}}>Drag & Drop .xlsx file or click to browse</p>
+                        <input type="file" accept=".xlsx,.xls" onChange={handleExcelFile} style={{display:'none'}} id="excel-input" />
+                        <button className="btn-primary-premium mt-12" onClick={() => document.getElementById('excel-input').click()}>SELECT EXCEL FILE</button>
+                      </div>
+
+                      <div className="semester-field mb-24" style={{maxWidth:'300px'}}>
+                        <label>Semester Label</label>
+                        <input className="input-premium" placeholder="e.g. Spring 2026" value={semesterLabel} onChange={e => setSemesterLabel(e.target.value)} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Excel Preview Modal */}
+          {previewData && (
+            <div className="modal-overlay-premium fade-in">
+              <div className="card" style={{width:'90vw', maxWidth:'1200px', maxHeight:'90vh', display:'flex', flexDirection:'column', padding:0}}>
+                <div className="modal-header" style={{padding:'24px', borderBottom:'1px solid var(--color-border)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                   <h2 style={{margin:0}}>Parsing Preview — {Object.keys(previewData).length} Depts</h2>
+                   <div style={{display:'flex', gap:'8px'}}>
+                      {Object.keys(previewData).map(dept => (
+                        <button key={dept} className={`badge-premium ${activeDept === dept ? 'badge-primary' : ''}`} style={{cursor:'pointer'}} onClick={() => setActiveDept(dept)}>{dept}</button>
+                      ))}
+                   </div>
+                </div>
+                <div style={{flex:1, overflowY:'auto', padding:'24px'}}>
+                  <table className="premium-table">
+                    <thead><tr><th>Code</th><th>Title</th><th>Date</th><th>Day</th><th>Time</th><th>Venue</th></tr></thead>
+                    <tbody>
+                      {previewData[activeDept]?.map((row, i) => (
+                        <tr key={i}>
+                          <td>{row.course_code}</td>
+                          <td style={{fontWeight:600}}>{row.course_title}</td>
+                          <td>{row.exam_date}</td>
+                          <td>{row.exam_day}</td>
+                          <td>{row.start_time} - {row.end_time}</td>
+                          <td>{row.venue}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="modal-footer" style={{padding:'24px', borderTop:'1px solid var(--color-border)', display:'flex', justifyContent:'flex-end', gap:'12px'}}>
+                  <button className="btn-text-only" onClick={() => setPreviewData(null)}>CANCEL</button>
+                  <button className="btn-primary-premium" disabled={saving} onClick={saveSchedule}>{saving ? 'SYNCHRONIZING...' : 'CONFIRM & SAVE REGISTRY'}</button>
+                </div>
+              </div>
+            </div>
           )}
+
+          {/* Uploads History */}
+          <div className="view-header-premium mt-24">
+            <h2>Institutional Upload Registry</h2>
+            <p>History of all published exam schedules.</p>
+          </div>
           
-          {user.role === 'Admin' && (
-            <button className="btn-outline" style={{borderColor: 'rgba(255,255,255,0.3)', color: 'white'}} onClick={() => openForm('upload_exam_pdf')}>
-              {exams.some(e => e.type === 'pdf_schedule') ? '🔄 UPDATE PDF' : '📤 UPLOAD PDF'}
-            </button>
+          {uploads.length === 0 && !error && (
+            <div className="card mb-24" style={{border:'1px dashed var(--color-accent)', background:'rgba(201, 164, 53, 0.05)', padding:'24px'}}>
+               <h4 style={{margin:0, color:'var(--color-accent)'}}>⚠️ DATABASE SETUP REQUIRED</h4>
+               <p style={{fontSize:'13px', margin:'8px 0 0 0', opacity:0.8}}>
+                 The Excel scheduling tables were not detected in your Supabase instance. 
+                 Please run the migration file <code>20260516194000_exam_schedule_excel.sql</code> in your SQL Editor to enable this feature.
+               </p>
+            </div>
           )}
-        </div>
-      </div>
+
+          <div className="grid-2-cols" style={{gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))'}}>
+            {uploads.map(u => (
+              <div key={u.id} className="card" style={{display:'flex', gap:'16px', alignItems:'center'}}>
+                 <div style={{fontSize:'32px'}}>{u.upload_type === 'excel' ? '📊' : '📄'}</div>
+                 <div style={{flex:1}}>
+                   <div style={{fontWeight:700}}>{u.semester}</div>
+                   <div style={{fontSize:'12px', opacity:0.6}}>{u.file_name}</div>
+                   <div style={{fontSize:'10px', marginTop:'4px'}}>{new Date(u.uploaded_at).toLocaleDateString()}</div>
+                 </div>
+                 <div style={{display:'flex', gap:'8px'}}>
+                    <button className="btn-text-only" style={{color:'var(--color-accent)'}} onClick={() => setViewingUpload(u)}>VIEW</button>
+                    {user.role === 'Admin' && <button className="btn-text-only" style={{color:'var(--color-danger)'}} onClick={() => handleDeleteUpload(u.id)}>DELETE</button>}
+                 </div>
+              </div>
+            ))}
+            {uploads.length === 0 && <div className="card" style={{gridColumn:'1/-1', textAlign:'center', opacity:0.5, padding:'40px'}}>No institutional uploads detected.</div>}
+          </div>
+        </>
+      )}
 
       {exams.length > 0 && !selCourse ? (
         <div className="fade-in">

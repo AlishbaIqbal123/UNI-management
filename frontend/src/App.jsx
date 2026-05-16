@@ -78,6 +78,7 @@ function App() {
     adminOverrides, setAdminOverrides, assessments, setAssessments, marks, setMarks,
     exams, setExams, feePayments, setFeePayments,
     timetableUploads, setTimetableUploads, timetableEntries, setTimetableEntries,
+    sessions, setSessions, sessionAttendance, setSessionAttendance,
     loading
   } = useUMSData();
 
@@ -494,7 +495,7 @@ function App() {
                         {n.category || 'General'}
                       </span>
                       <span className="hint" style={{fontWeight:700, color: 'var(--color-ink)'}}>
-                        {new Date(n.created_at || n.date).toLocaleDateString('en-GB', { day: '2d', month: 'short', year: 'numeric' })}
+                        {new Date(n.created_at || n.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </span>
                     </div>
                     <h3 style={{fontFamily: 'var(--font-heading)', fontSize: '20px', marginBottom: '12px'}}>{n.title}</h3>
@@ -753,7 +754,23 @@ function App() {
         );
 
       case 'classes': return <FacultyWorkspace user={user} students={students} courses={courses} enrolments={enrolments} results={results} setResults={setResults} attendance={attendance} setAttendance={setAttendance} sessions={sessions} setSessions={setSessions} sessionAttendance={sessionAttendance} setSessionAttendance={setSessionAttendance} assessments={assessments} setAssessments={setAssessments} marks={marks} setMarks={setMarks} notify={notify} initialTab="attendance" />;
-      case 'grading': return <ExamManagement user={user} students={students} courses={courses} departments={departments} assessments={assessments} setAssessments={setAssessments} marks={marks} setMarks={setMarks} enrolments={enrolments} notify={notify} />;
+      case 'grading': return <ExamManagement 
+        user={user} 
+        students={students} 
+        courses={courses} 
+        departments={departments} 
+        assessments={assessments} 
+        setAssessments={setAssessments} 
+        marks={marks} 
+        setMarks={setMarks} 
+        enrolments={enrolments} 
+        notify={notify}
+        exams={exams}
+        setExams={setExams}
+        faculty={faculty}
+        openForm={openForm}
+        handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})}
+      />;
 
       case 'importer':
         return (
@@ -772,9 +789,28 @@ function App() {
         );
 
       case 'exams':
-        return <ExamManagement exams={exams} setExams={setExams} courses={courses} faculty={faculty} user={user} openForm={openForm} notify={notify} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
+        return <ExamManagement 
+          exams={exams} 
+          setExams={setExams} 
+          courses={courses} 
+          faculty={faculty} 
+          user={user} 
+          openForm={openForm} 
+          notify={notify} 
+          handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})}
+          students={students}
+          enrolments={enrolments}
+          assessments={assessments}
+          setAssessments={setAssessments}
+          marks={marks}
+          setMarks={setMarks}
+          departments={departments}
+        />;
 
 
+      case 'departments': return <DepartmentManagement departments={departments} faculty={faculty} openForm={openForm} />;
+      case 'catalog': return <CourseManagement courses={courses} setCourses={setCourses} faculty={faculty} enrolments={enrolments} user={user} openForm={openForm} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
+      case 'enrolments': return <EnrollmentManagement enrolments={enrolments} setEnrolments={setEnrolments} students={students} courses={courses} notify={notify} />;
       default: return <div className="placeholder-view glass-card p-40"><h2>{activeTab} Module</h2><p>CUI Services initializing...</p></div>;
     }
   };

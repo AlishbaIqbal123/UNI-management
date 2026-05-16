@@ -730,3 +730,91 @@ label {
   letter-spacing: 0.05em;
 }
 
+
+/* --- Excel Schedule & Import Styles --- */
+
+.tabs-header {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab-pill {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 16px 24px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+  border-bottom: 3px solid transparent;
+}
+
+.tab-pill.active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.upload-zone.drag-over {
+  border-color: var(--color-accent) !important;
+  background: rgba(201, 164, 53, 0.05) !important;
+}
+
+.dept-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dept-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-ink);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dept-tab:hover {
+  border-color: var(--color-accent);
+}
+
+.dept-tab.active {
+  background: var(--color-ink);
+  color: white;
+  border-color: var(--color-ink);
+}
+
+.dept-count {
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(0,0,0,0.1);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.active .dept-count {
+  background: rgba(255,255,255,0.2);
+}
+
+.row-alt {
+  background: rgba(0,0,0,0.02);
+}
+
+[data-theme="dark"] .row-alt {
+  background: rgba(255,255,255,0.02);
+}
+
+.type-badge {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.type-badge.excel { background: #E7F5E9; color: #2E7D32; }
+.type-badge.pdf { background: #FFF3E0; color: #EF6C00; }
