@@ -1,6 +1,6 @@
 import React from 'react';
 
-const LandingPage = ({ onEnterPortal }) => {
+const LandingPage = ({ onEnterPortal, theme, toggleTheme }) => {
   return (
     <div className="landing-wrapper fade-in" style={{ background: 'var(--color-bg)', minHeight: '100vh' }}>
       {/* Navigation Header */}
@@ -21,6 +21,9 @@ const LandingPage = ({ onEnterPortal }) => {
         <nav className="header-nav" style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
           <a href="#features" style={{ textDecoration: 'none', color: 'var(--color-ink)', fontWeight: 600, fontSize: '14px' }}>Modules</a>
           <a href="#tech" style={{ textDecoration: 'none', color: 'var(--color-ink)', fontWeight: 600, fontSize: '14px' }}>Tech Stack</a>
+          <button className="btn-icon-premium" onClick={toggleTheme} title="Toggle Theme" style={{ border: 'none' }}>
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
           <button className="btn-primary-premium" onClick={onEnterPortal}>Enter Portal</button>
         </nav>
       </header>

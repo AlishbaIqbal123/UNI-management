@@ -2,7 +2,7 @@ import React from 'react';
 
 const ROLES = { ADMIN: 'Admin', STUDENT: 'Student', FACULTY: 'Faculty', FINANCE: 'Finance' };
 
-const Login = ({ onLogin, setStep, loginStep, authData, setAuthData, regSubStep, setRegSubStep, handleRegister }) => {
+const Login = ({ onLogin, setStep, loginStep, authData, setAuthData, regSubStep, setRegSubStep, handleRegister, theme, toggleTheme }) => {
   const isInvertedBtn = {
     background: 'var(--color-ink)',
     color: 'var(--color-bg)',
@@ -18,8 +18,17 @@ const Login = ({ onLogin, setStep, loginStep, authData, setAuthData, regSubStep,
     <div className="login-page-container" style={{
       display: 'flex',
       minHeight: '100vh',
-      background: 'var(--color-bg)'
+      background: 'var(--color-bg)',
+      position: 'relative'
     }}>
+      <button 
+        className="btn-icon-premium" 
+        onClick={toggleTheme} 
+        title="Toggle Theme" 
+        style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 10, border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer' }}
+      >
+        {theme === 'dark' ? '☀️' : '🌙'}
+      </button>
       {/* Left Column: Branding */}
       <div className="login-branding-col" style={{
         flex: 1,

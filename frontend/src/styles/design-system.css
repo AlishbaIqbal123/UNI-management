@@ -387,7 +387,7 @@ body {
 /* --- Button System --- */
 .btn-primary-premium {
   background: var(--color-ink);
-  color: #FFFFFF;
+  color: var(--color-bg);
   border: none;
   padding: 10px 20px;
   border-radius: var(--radius);

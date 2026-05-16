@@ -58,6 +58,10 @@ export function useUMSData() {
      { recordID: 3, studentID: 'S003', amountPaid: 0, dueAmount: 45000 },
      { recordID: 4, studentID: 'S010', amountPaid: 45000, dueAmount: 0 }
   ]));
+  const [feeStructures, setFeeStructures] = useState(() => load('ums_fee_structures_v1', [
+     { id: 'fs1', departmentID: 'CS', semester: 'Fall 2024', totalFee: 120000 },
+     { id: 'fs2', departmentID: 'BBA', semester: 'Fall 2024', totalFee: 95000 }
+  ]));
   const [attendance, setAttendance] = useState(() => load('ums_attendance_v4', []));
   const [notices, setNotices] = useState(() => load('ums_notices_v4', [
     { id: 1, title: 'Orientation Week', content: 'Welcome to Fall 2024 semester.', date: '2026-09-01', target: 'All' }
@@ -100,7 +104,8 @@ export function useUMSData() {
     save('ums_marks_v4', marks); save('ums_fee_payments_v1', feePayments);
     save('ums_timetable_uploads_v1', timetableUploads); save('ums_timetable_entries_v1', timetableEntries);
     save('ums_sessions_v1', sessions); save('ums_session_attendance_v1', sessionAttendance);
-  }, [students, faculty, courses, departments, enrolments, results, finance, attendance, notices, exams, adminOverrides, assessments, marks, feePayments, timetableUploads, timetableEntries, sessions, sessionAttendance]);
+    save('ums_fee_structures_v1', feeStructures);
+  }, [students, faculty, courses, departments, enrolments, results, finance, attendance, notices, exams, adminOverrides, assessments, marks, feePayments, timetableUploads, timetableEntries, sessions, sessionAttendance, feeStructures]);
 
   useEffect(() => {
     const fetchCoreRegistries = async () => {
@@ -122,7 +127,8 @@ export function useUMSData() {
              supabase.from('timetable_uploads').select('*'),
              supabase.from('timetable_entries').select('*'),
              supabase.from('sessions').select('*'),
-             supabase.from('session_attendance').select('*')
+             supabase.from('session_attendance').select('*'),
+             supabase.from('fee_structures').select('*')
           ]);
 
           if (resStudents.data?.length) {
@@ -211,6 +217,14 @@ export function useUMSData() {
           if (resSessions?.data?.length) setSessions(resSessions.data);
           if (resAttend?.data?.length) setSessionAttendance(resAttend.data);
 
+          const { data: resFeeStructures } = await supabase.from('fee_structures').select('*');
+          if (resFeeStructures?.length) setFeeStructures(resFeeStructures.map(f => ({
+            id: f.id,
+            departmentID: f.department_id,
+            semester: f.semester,
+            totalFee: f.total_fee
+          })));
+
           const { data: resAsst } = await supabase.from('assessments').select('*');
           if (resAsst?.length) setAssessments(resAsst.map(a => ({
             id: a.id,
@@ -252,7 +266,8 @@ export function useUMSData() {
     fetchCoreRegistries();
 
     if (isDatabaseConnected()) {
-      const channel = supabase.channel('ums_realtime')
+      const channelName = `ums_realtime_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      const channel = supabase.channel(channelName)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'enrollments' }, () => fetchCoreRegistries())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => fetchCoreRegistries())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'assessments' }, () => fetchCoreRegistries())
@@ -260,10 +275,10 @@ export function useUMSData() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_payments' }, () => fetchCoreRegistries())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'timetable_uploads' }, () => fetchCoreRegistries())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'timetable_entries' }, () => fetchCoreRegistries())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'assessments' }, () => fetchCoreRegistries())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'marks' }, () => fetchCoreRegistries())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => fetchCoreRegistries())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'session_attendance' }, () => fetchCoreRegistries())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_structures' }, () => fetchCoreRegistries())
         .subscribe();
 
       return () => {
@@ -291,6 +306,7 @@ export function useUMSData() {
     timetableEntries, setTimetableEntries,
     sessions, setSessions,
     sessionAttendance, setSessionAttendance,
+    feeStructures, setFeeStructures,
     loading
   };
 }

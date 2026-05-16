@@ -342,14 +342,14 @@ function App() {
   };
 
   if (appView === 'landing') return (
-    <div className="landing-page-root">
-      <LandingPage onEnterPortal={() => user ? setAppView('portal') : setAppView('login')} />
+    <div className="landing-page-root" style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden' }}>
+      <LandingPage onEnterPortal={() => user ? setAppView('portal') : setAppView('login')} theme={theme} toggleTheme={toggleTheme} />
       <Footer />
     </div>
   );
   if (appView === 'login') return (
-    <div className="login-page-root" style={{display:'flex', flexDirection:'column', minHeight:'100vh'}}>
-      <Login onLogin={handleLogin} setStep={(s) => { setLoginStep(s); setRegSubStep(1); setAuthData({id:'', name:'', password:'', program: '', email: ''}); }} loginStep={loginStep} authData={authData} setAuthData={setAuthData} handleRegister={handleRegister} regSubStep={regSubStep} setRegSubStep={setRegSubStep} />
+    <div className="login-page-root" style={{display:'flex', flexDirection:'column', minHeight:'100vh', height: '100vh', overflowY: 'auto', overflowX: 'hidden'}}>
+      <Login onLogin={handleLogin} setStep={(s) => { setLoginStep(s); setRegSubStep(1); setAuthData({id:'', name:'', password:'', program: '', email: ''}); }} loginStep={loginStep} authData={authData} setAuthData={setAuthData} handleRegister={handleRegister} regSubStep={regSubStep} setRegSubStep={setRegSubStep} theme={theme} toggleTheme={toggleTheme} />
       <Footer />
     </div>
   );
@@ -412,8 +412,8 @@ function App() {
               { label: 'Grades Entered', value: results.filter(r => myCourses.some(c => c.courseID === r.courseID)).length, action: 'VIEW_GRADING', trend: 'Records' },
             ]
           : [
-              { label: 'Total Records', value: finance.length,   trend: 'All Payments' },
-              { label: 'Pending Dues',  value: finance.filter(f => (f.dueAmount || 0) > 0).length, warning: finance.some(f => (f.dueAmount || 0) > 0) },
+              { label: 'Total Records', value: finance.length, action: 'VIEW_FINANCE', trend: 'All Payments' },
+              { label: 'Pending Dues',  value: finance.filter(f => (f.dueAmount || 0) > 0).length, action: 'VIEW_FINANCE', warning: finance.some(f => (f.dueAmount || 0) > 0) },
             ];
 
         return <Dashboard
@@ -575,7 +575,7 @@ function App() {
       case 'students': return <StudentManagement students={students} finance={finance} feePayments={feePayments} openForm={openForm} handleDelete={(s,i,t) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:'id'})} setStudents={setStudents} />;
       
       case 'faculty': return <FacultyManagement faculty={faculty} openForm={openForm} handleDelete={(s,i,t) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:'id'})} setFaculty={setFaculty} />;
-      case 'my-finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} />;
+      case 'my-finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} feeStructures={feeStructures} setFeeStructures={setFeeStructures} />;
 
       case 'overrides':
         return <AdminOverrideManagement students={students} adminOverrides={adminOverrides} setAdminOverrides={setAdminOverrides} notify={notify} />;
@@ -717,7 +717,7 @@ function App() {
       case 'enrolments': 
         return <EnrollmentManagement enrolments={enrolments} setEnrolments={setEnrolments} students={students} courses={courses} notify={notify} />;
 
-      case 'finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} />;
+      case 'finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} feeStructures={feeStructures} setFeeStructures={setFeeStructures} />;
       
       case 'faculty-timetable':
         const teacherName = user.facultyName || user.name;
