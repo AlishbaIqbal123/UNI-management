@@ -222,6 +222,8 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   transition: background 250ms ease, color 250ms ease;
+  display: flex;
+  flex-direction: column;
 }
 
 /* --- Dashboard System --- */

@@ -9,9 +9,13 @@ const Footer = () => {
       borderTop: '4px solid var(--color-accent)',
       fontFamily: 'var(--font-body)',
       position: 'relative',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      marginTop: 'auto'
     }}>
       <style>{`
+        .footer-premium {
+          margin: 48px -36px -48px -36px !important;
+        }
         .footer-link {
           color: var(--color-bg);
           text-decoration: none;
@@ -32,7 +36,10 @@ const Footer = () => {
           align-items: center;
         }
         @media (max-width: 768px) {
-          .footer-premium { padding: 40px 24px 24px 24px !important; }
+          .footer-premium {
+            padding: 40px 24px 24px 24px !important;
+            margin: 48px -20px -40px -20px !important;
+          }
         }
       `}</style>
       
