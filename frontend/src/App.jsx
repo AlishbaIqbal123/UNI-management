@@ -1027,6 +1027,10 @@ function App() {
               <input className="input-premium" placeholder="e.g. John Doe" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} />
             </div>
             <div>
+              <label>Portal Username / Login ID</label>
+              <input className="input-premium" placeholder="e.g. S001" value={formData.id || ''} onChange={e => setFormData({...formData, id: e.target.value})} />
+            </div>
+            <div>
               <label>Registration Number</label>
               <input className="input-premium" placeholder="FA24-BCS-055" value={formData.regNumber || ''} onChange={e => setFormData({...formData, regNumber: e.target.value})} />
             </div>

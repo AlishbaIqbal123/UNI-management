@@ -211,6 +211,90 @@ const FinanceManagement = ({ user, feeStructures, setFeeStructures, departments,
   // ----------------------------------------------------
   return (
     <div className="view-container fade-in">
+      <style>{`
+        .finance-card-premium {
+          background: var(--color-card);
+          border: 1px solid var(--color-border);
+          border-radius: 8px;
+          box-shadow: 0 4px 20px rgba(26, 58, 107, 0.08);
+          overflow: hidden;
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .finance-card-premium:hover {
+          box-shadow: 0 8px 30px rgba(26, 58, 107, 0.12);
+        }
+        .finance-table-header {
+          background: linear-gradient(135deg, var(--color-sidebar-bg) 0%, #162a45 100%) !important;
+          color: white !important;
+          text-transform: uppercase;
+          font-size: 11px;
+          letter-spacing: 0.1em;
+          font-weight: 600;
+          padding: 16px 20px !important;
+        }
+        .finance-table-row {
+          transition: all 0.2s ease;
+          border-bottom: 1px solid var(--color-border);
+        }
+        .finance-table-row:hover {
+          background: rgba(201, 164, 53, 0.05) !important;
+          transform: scale(1.001) translateY(-1px);
+          box-shadow: 0 4px 12px rgba(26, 58, 107, 0.04);
+        }
+        .finance-table-row td {
+          padding: 18px 20px !important;
+          vertical-align: middle;
+        }
+        .finance-btn-record {
+          background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dark) 100%) !important;
+          color: white !important;
+          font-weight: 600 !important;
+          border: none !important;
+          box-shadow: 0 2px 6px rgba(201, 164, 53, 0.3) !important;
+          transition: all 0.2s !important;
+          border-radius: 4px !important;
+          cursor: pointer !important;
+        }
+        .finance-btn-record:hover {
+          transform: translateY(-1px) !important;
+          box-shadow: 0 4px 12px rgba(201, 164, 53, 0.5) !important;
+          opacity: 0.95 !important;
+        }
+        .finance-btn-record:active {
+          transform: translateY(1px) !important;
+        }
+        .finance-btn-cleared {
+          background: rgba(74, 103, 133, 0.08) !important;
+          color: var(--color-ink-muted) !important;
+          border: 1px solid var(--color-border) !important;
+          cursor: not-allowed !important;
+          opacity: 0.6;
+        }
+        .badge-status-cleared {
+          background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+          color: white !important;
+          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2) !important;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .badge-status-pending {
+          background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%) !important;
+          color: white !important;
+          box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2) !important;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .finance-delete-btn {
+          color: var(--color-danger);
+          font-weight: 600;
+          padding: 6px 12px;
+          border-radius: 4px;
+          transition: all 0.2s;
+        }
+        .finance-delete-btn:hover {
+          background: rgba(168, 50, 42, 0.08);
+          color: #d32f2f;
+        }
+      `}</style>
+
       <div className="view-header-premium" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
           <h1>Finance Portal</h1>
@@ -265,19 +349,21 @@ const FinanceManagement = ({ user, feeStructures, setFeeStructures, departments,
         </div>
       )}
 
-      <div className="card" style={{ padding: 0 }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)' }}>
-          <h3 style={{ margin: 0, fontSize: '16px' }}>Active Institutional Fee Structures</h3>
+      <div className="finance-card-premium" style={{ marginBottom: '32px' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', background: 'rgba(26, 58, 107, 0.02)' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--color-ink)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🏛️</span> Active Institutional Fee Structures
+          </h3>
         </div>
         
         <div className="table-wrapper">
           <table className="min-w-table">
             <thead>
               <tr>
-                <th>Department</th>
-                <th>Semester / Batch</th>
-                <th>Standard Fee</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+                <th className="finance-table-header">Department</th>
+                <th className="finance-table-header">Semester / Batch</th>
+                <th className="finance-table-header">Standard Fee</th>
+                <th className="finance-table-header" style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -294,21 +380,20 @@ const FinanceManagement = ({ user, feeStructures, setFeeStructures, departments,
               {feeStructures.map(f => {
                 const deptObj = departments.find(d => d.departmentID === f.departmentID);
                 return (
-                  <tr key={f.id}>
+                  <tr key={f.id} className="finance-table-row">
                     <td data-label="Department">
-                      <div style={{ fontWeight: 600 }}>{deptObj ? deptObj.departmentName : f.departmentID}</div>
-                      <span className="hint">{f.departmentID}</span>
+                      <div style={{ fontWeight: 700, color: 'var(--color-ink)', fontSize: '14px' }}>{deptObj ? deptObj.departmentName : f.departmentID}</div>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{f.departmentID}</span>
                     </td>
                     <td data-label="Semester / Batch">
-                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600 }}>{f.semester}</span>
+                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: '14px', color: 'var(--color-ink)' }}>{f.semester}</span>
                     </td>
-                    <td data-label="Standard Fee" style={{ fontWeight: 700, color: 'var(--color-accent)' }}>
+                    <td data-label="Standard Fee" style={{ fontWeight: 800, color: 'var(--color-accent)', fontSize: '15px' }}>
                       PKR {parseFloat(f.totalFee).toLocaleString()}
                     </td>
                     <td data-label="Actions" style={{ textAlign: 'right' }}>
                       <button 
-                        className="btn-text-only" 
-                        style={{ color: 'var(--color-danger)', fontWeight: 600 }}
+                        className="btn-text-only finance-delete-btn" 
                         onClick={() => handleDeleteStructure(f.id, f.departmentID, f.semester)}
                       >
                         Delete
@@ -323,22 +408,24 @@ const FinanceManagement = ({ user, feeStructures, setFeeStructures, departments,
       </div>
 
       {isFinanceOfficer && (
-        <div className="card mt-32" style={{ padding: 0, marginTop: '32px' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0, fontSize: '16px' }}>Student Fee Ledger & Payments</h3>
-            <span style={{ fontSize: '12px', opacity: 0.6 }}>{students.length} Student Record(s)</span>
+        <div className="finance-card-premium" style={{ marginTop: '32px' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(26, 58, 107, 0.02)' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--color-ink)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>👥</span> Student Fee Ledger & Payments
+            </h3>
+            <span className="badge-premium badge-primary" style={{ fontSize: '11px', padding: '6px 12px' }}>{students.length} Student Record(s)</span>
           </div>
           
           <div className="table-wrapper">
             <table className="min-w-table">
               <thead>
                 <tr>
-                  <th>Student Information</th>
-                  <th>Standard Fee</th>
-                  <th>Total Paid</th>
-                  <th>Outstanding Dues</th>
-                  <th>Ledger Status</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
+                  <th className="finance-table-header">Student Information</th>
+                  <th className="finance-table-header">Standard Fee</th>
+                  <th className="finance-table-header">Total Paid</th>
+                  <th className="finance-table-header">Outstanding Dues</th>
+                  <th className="finance-table-header">Ledger Status</th>
+                  <th className="finance-table-header" style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -369,40 +456,41 @@ const FinanceManagement = ({ user, feeStructures, setFeeStructures, departments,
                   const isCleared = balance <= 0;
                   
                   return (
-                    <tr key={s.id || s.dbID}>
+                    <tr key={s.id || s.dbID} className="finance-table-row">
                       <td data-label="Student Information">
-                        <div style={{ fontWeight: 600 }}>{s.name}</div>
-                        <span className="hint">{s.program || 'Undergraduate'} • Batch {semester}</span>
+                        <div style={{ fontWeight: 700, color: 'var(--color-ink)', fontSize: '14px' }}>{s.name}</div>
+                        <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>
+                          <span style={{ fontWeight: 600 }}>{s.program || 'Undergraduate'}</span> • Batch {semester}
+                        </div>
                       </td>
-                      <td data-label="Standard Fee" style={{ fontWeight: 600 }}>
+                      <td data-label="Standard Fee" style={{ fontWeight: 700, color: 'var(--color-ink-muted)' }}>
                         PKR {standardFee.toLocaleString()}
                       </td>
-                      <td data-label="Total Paid" style={{ fontWeight: 600, color: 'var(--color-accent)' }}>
+                      <td data-label="Total Paid" style={{ fontWeight: 700, color: '#10B981' }}>
                         PKR {paid.toLocaleString()}
                       </td>
-                      <td data-label="Outstanding Dues" style={{ fontWeight: 700, color: isCleared ? 'var(--color-accent)' : 'var(--color-danger)' }}>
+                      <td data-label="Outstanding Dues" style={{ fontWeight: 800, color: isCleared ? '#10B981' : '#EF4444' }}>
                         PKR {balance.toLocaleString()}
                       </td>
                       <td data-label="Ledger Status">
-                        <span className={`badge-premium ${isCleared ? 'badge-primary' : 'badge-danger'}`} style={{
-                          background: isCleared ? 'rgba(74, 103, 133, 0.1)' : 'rgba(166, 61, 64, 0.1)',
-                          color: isCleared ? 'var(--color-accent)' : 'var(--color-danger)',
-                          border: isCleared ? '1px solid var(--color-accent)' : '1px solid var(--color-danger)',
-                          fontSize: '11px',
-                          padding: '4px 8px',
-                          borderRadius: '3px',
-                          fontWeight: 'bold'
+                        <span className={`badge-premium ${isCleared ? 'badge-status-cleared' : 'badge-status-pending'}`} style={{
+                          fontSize: '10px',
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          fontWeight: '800',
+                          letterSpacing: '0.5px'
                         }}>
                           {isCleared ? '✓ CLEARED' : '⚠ PENDING'}
                         </span>
                       </td>
                       <td data-label="Actions" style={{ textAlign: 'right' }}>
                         <button 
-                          className="btn-primary-premium" 
-                          style={{ padding: '8px 16px', fontSize: '12px', height: '34px', background: isCleared ? 'var(--color-border)' : 'var(--color-accent)', color: isCleared ? 'var(--color-ink)' : 'white' }}
+                          className={`btn-primary-premium ${isCleared ? 'finance-btn-cleared' : 'finance-btn-record'}`} 
+                          style={{ padding: '8px 16px', fontSize: '12px', height: '36px' }}
+                          disabled={isCleared}
                           onClick={() => openForm('payment', { studentID: s.id, studentName: s.name, semester: semester })}
                         >
-                          Record Payment
+                          {isCleared ? 'Fully Cleared' : 'Record Payment'}
                         </button>
                       </td>
                     </tr>
