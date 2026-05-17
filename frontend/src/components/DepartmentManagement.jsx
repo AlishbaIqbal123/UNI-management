@@ -24,8 +24,8 @@ const DepartmentManagement = ({ departments, faculty, openForm }) => {
             </tr>
           </thead>
           <tbody>
-            {departments.map(d => (
-              <tr key={d.departmentID}>
+            {departments.map((d, idx) => (
+              <tr key={`${d.departmentID}-${idx}`}>
                 <td data-label="Identifier" className="font-monospace" style={{fontWeight:700}}>#{d.departmentID}</td>
                 <td data-label="Institutional Name"><span style={{fontWeight:600}}>{d.departmentName}</span></td>
                 <td data-label="Head of Department">

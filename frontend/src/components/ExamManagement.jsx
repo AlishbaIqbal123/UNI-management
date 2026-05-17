@@ -28,6 +28,8 @@ const ExamManagement = ({
   const [showAddAsst, setShowAddAsst] = useState(false);
   const [newAsst, setNewAsst] = useState({ type: 'quiz', title: '', total_marks: 0 });
 
+  const isGradingMode = !!setAssessments && (user.role === 'Faculty' || user.role === 'Admin');
+
   // --- Excel Import State ---
   const [activeTab, setActiveTab]         = useState('pdf');       // 'pdf' or 'excel'
   const [selectedFile, setSelectedFile]   = useState(null);
@@ -570,48 +572,100 @@ const ExamManagement = ({
     );
   };
 
+  if (isGradingMode) {
+    return (
+      <div className="view-container fade-in">
+        {/* Panel 1 — Selection Bar (Sticky) */}
+        <div className="sticky-top-bar card mb-32" style={{
+          display: 'flex', 
+          gap: '16px', 
+          alignItems: 'center',
+          padding: '16px 24px',
+          margin: 0,
+          borderRadius: 0,
+          borderLeft: 'none',
+          borderRight: 'none',
+          top: 0
+        }}>
+          <div style={{flex: 1}}>
+            <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.5, display: 'block', marginBottom: '4px'}}>DEPARTMENT</label>
+            <select className="input-premium" value={selDept} onChange={e => { setSelDept(e.target.value); setSelCourse(''); setSelSection(''); }}>
+              <option value="">Select Dept</option>
+              {departments.map((d, idx) => <option key={`${d.departmentID}-${idx}`} value={d.departmentID}>{d.departmentName}</option>)}
+            </select>
+          </div>
+          <div style={{flex: 1}}>
+            <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.5, display: 'block', marginBottom: '4px'}}>COURSE</label>
+            <select className="input-premium" value={selCourse} onChange={e => { setSelCourse(e.target.value); setSelSection(''); }} disabled={!selDept}>
+              <option value="">{filteredCourses.length > 0 ? "Select Course" : "No Courses Assigned"}</option>
+              {filteredCourses.map(c => <option key={c.courseID} value={c.courseID}>{c.courseID}: {c.courseName}</option>)}
+            </select>
+          </div>
+          <div style={{flex: 1}}>
+            <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.5, display: 'block', marginBottom: '4px'}}>SECTION</label>
+            <select className="input-premium" value={selSection} onChange={e => setSelSection(e.target.value)} disabled={!selCourse}>
+              <option value="">Select Section</option>
+              {availableSections.map(s => <option key={s} value={s}>Section {s}</option>)}
+            </select>
+          </div>
+          <div style={{display: 'flex', gap: '8px', paddingTop: '18px'}}>
+             <button className={activeView === 'overview' ? 'btn-primary-premium' : 'btn-text-only'} onClick={() => setActiveView('overview')} disabled={!isSelectionComplete}>Evaluation Hub</button>
+             <button className={activeView === 'summary' ? 'btn-primary-premium' : 'btn-text-only'} onClick={() => setActiveView('summary')} disabled={!isSelectionComplete}>Performance Matrix</button>
+          </div>
+        </div>
+
+        {!isSelectionComplete ? (
+          <div className="empty-state card" style={{padding: '100px 40px'}}>
+            <div className="empty-state-icon">🔒</div>
+            <h2>Pedagogical Repository Locked</h2>
+            <p>Please select Department, Course, and Section from the header to access evaluations.</p>
+          </div>
+        ) : (
+          <>
+            {activeView === 'overview' && renderOverview()}
+            {activeView === 'entry' && renderMarksEntry()}
+            {activeView === 'summary' && renderSummary()}
+          </>
+        )}
+
+        {/* Add Assessment Modal */}
+        {showAddAsst && (
+          <div className="modal-overlay-premium fade-in">
+             <div className="card" style={{width: '400px', border: '1px solid var(--color-ink)'}}>
+                <h3>Initialize Evaluation</h3>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px'}}>
+                  <div>
+                    <label style={{fontSize: '12px', opacity: 0.6}}>Evaluation Type</label>
+                    <select className="input-premium" value={newAsst.type} onChange={e => setNewAsst({...newAsst, type: e.target.value})}>
+                      <option value="quiz">Quiz</option>
+                      <option value="assignment">Assignment</option>
+                      <option value="midterm">Midterm</option>
+                      <option value="final">Final</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{fontSize: '12px', opacity: 0.6}}>Short Title</label>
+                    <input className="input-premium" placeholder="e.g. Quiz 1" value={newAsst.title} onChange={e => setNewAsst({...newAsst, title: e.target.value})} />
+                  </div>
+                  <div>
+                    <label style={{fontSize: '12px', opacity: 0.6}}>Total Points</label>
+                    <input type="number" className="input-premium" value={newAsst.total_marks} onChange={e => setNewAsst({...newAsst, total_marks: e.target.value})} />
+                  </div>
+                  <div style={{display: 'flex', gap: '12px', marginTop: '8px'}}>
+                    <button className="btn-text-only" style={{flex: 1}} onClick={() => setShowAddAsst(false)}>Cancel</button>
+                    <button className="btn-primary-premium" style={{flex: 1}} onClick={handleAddAsst}>Initialize</button>
+                  </div>
+                </div>
+             </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // --- Exam Schedule View ---
   return (
     <div className="view-container fade-in">
-      {/* Panel 1 — Selection Bar (Sticky) */}
-      <div className="sticky-top-bar card mb-32" style={{
-        display: 'flex', 
-        gap: '16px', 
-        alignItems: 'center',
-        padding: '16px 24px',
-        margin: 0,
-        borderRadius: 0,
-        borderLeft: 'none',
-        borderRight: 'none',
-        top: 0
-      }}>
-        <div style={{flex: 1}}>
-          <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.5, display: 'block', marginBottom: '4px'}}>DEPARTMENT</label>
-          <select className="input-premium" value={selDept} onChange={e => { setSelDept(e.target.value); setSelCourse(''); setSelSection(''); }}>
-            <option value="">Select Dept</option>
-            {departments.map(d => <option key={d.departmentID} value={d.departmentID}>{d.departmentName}</option>)}
-          </select>
-        </div>
-        <div style={{flex: 1}}>
-          <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.5, display: 'block', marginBottom: '4px'}}>COURSE</label>
-          <select className="input-premium" value={selCourse} onChange={e => { setSelCourse(e.target.value); setSelSection(''); }} disabled={!selDept}>
-            <option value="">{filteredCourses.length > 0 ? "Select Course" : "No Courses Assigned"}</option>
-            {filteredCourses.map(c => <option key={c.courseID} value={c.courseID}>{c.courseID}: {c.courseName}</option>)}
-          </select>
-        </div>
-        <div style={{flex: 1}}>
-          <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.5, display: 'block', marginBottom: '4px'}}>SECTION</label>
-          <select className="input-premium" value={selSection} onChange={e => setSelSection(e.target.value)} disabled={!selCourse}>
-            <option value="">Select Section</option>
-            {availableSections.map(s => <option key={s} value={s}>Section {s}</option>)}
-          </select>
-        </div>
-        <div style={{display: 'flex', gap: '8px', paddingTop: '18px'}}>
-           <button className={activeView === 'overview' ? 'btn-primary-premium' : 'btn-text-only'} onClick={() => setActiveView('overview')} disabled={!isSelectionComplete}>Evaluation Hub</button>
-           <button className={activeView === 'summary' ? 'btn-primary-premium' : 'btn-text-only'} onClick={() => setActiveView('summary')} disabled={!isSelectionComplete}>Performance Matrix</button>
-        </div>
-      </div>
-
-      {/* NEW: PDF & Excel Schedule Hub */}
       {viewingUpload ? (
         <div className="schedule-view-page fade-in">
           <div className="schedule-view-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px'}}>
@@ -690,104 +744,78 @@ const ExamManagement = ({
         </div>
       ) : (
         <>
-          <div className="card mb-32" style={{padding:0, overflow:'hidden'}}>
-            <div className="tabs-header" style={{display:'flex', background:'var(--color-ink)', padding:'0 24px'}}>
-               <button className={`tab-pill ${activeTab === 'pdf' ? 'active' : ''}`} onClick={() => setActiveTab('pdf')}>📄 PDF UPLOAD</button>
-               <button className={`tab-pill ${activeTab === 'excel' ? 'active' : ''}`} onClick={() => setActiveTab('excel')}>📊 EXCEL IMPORT</button>
+          {/* Header */}
+          <div className="view-header-premium mb-32">
+            <div>
+              <h1>{user.role === 'Admin' ? 'Exam Schedule Management' : 'Official Examination Schedules'}</h1>
+              <p>{user.role === 'Admin' ? 'Upload, coordinate and broadcast institutional date sheets.' : 'Access and view published mid-term and terminal examination timetables.'}</p>
             </div>
+          </div>
 
-            <div style={{padding:'32px'}}>
-              {activeTab === 'pdf' ? (
-                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                   <div>
-                    <h3 style={{margin:0}}>Official PDF Schedule</h3>
-                    <p style={{margin:'4px 0 0 0', opacity:0.6, fontSize:'13px'}}>Access or update the master examination schedule in PDF format.</p>
-                   </div>
-                   <div style={{display:'flex', gap:'12px'}}>
-                     {exams.some(e => e.type === 'pdf_schedule') && (
-                        <button className="btn-primary-premium" onClick={() => window.open(exams.find(e => e.type === 'pdf_schedule').fileURL, '_blank')}>VIEW MASTER PDF</button>
-                     )}
-                     {user.role === 'Admin' && (
+          {/* PDF/Excel Uploader (Admin Only) */}
+          {user.role === 'Admin' ? (
+            <div className="card mb-32" style={{padding:0, overflow:'hidden'}}>
+              <div className="tabs-header" style={{display:'flex', background:'var(--color-ink)', padding:'0 24px'}}>
+                 <button className={`tab-pill ${activeTab === 'pdf' ? 'active' : ''}`} onClick={() => setActiveTab('pdf')}>📄 PDF UPLOAD</button>
+                 <button className={`tab-pill ${activeTab === 'excel' ? 'active' : ''}`} onClick={() => setActiveTab('excel')}>📊 EXCEL IMPORT</button>
+              </div>
+
+              <div style={{padding:'32px'}}>
+                {activeTab === 'pdf' ? (
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                     <div>
+                      <h3 style={{margin:0}}>Official PDF Schedule</h3>
+                      <p style={{margin:'4px 0 0 0', opacity:0.6, fontSize:'13px'}}>Access or update the master examination schedule in PDF format.</p>
+                     </div>
+                     <div style={{display:'flex', gap:'12px'}}>
+                       {exams.some(e => e.type === 'pdf_schedule') && (
+                          <button className="btn-primary-premium" onClick={() => window.open(exams.find(e => e.type === 'pdf_schedule').fileURL, '_blank')}>VIEW MASTER PDF</button>
+                       )}
                        <button className="btn-primary-premium" style={{background:'var(--color-accent)', color:'var(--color-ink)'}} onClick={() => openForm('upload_exam_pdf')}>
                          {exams.some(e => e.type === 'pdf_schedule') ? 'UPDATE PDF' : 'UPLOAD PDF'}
                        </button>
-                     )}
-                   </div>
-                </div>
-              ) : (
-                <div className="excel-import-panel">
-                  <div className="import-instructions mb-24">
-                    <h3>Excel-Driven Institutional Scheduling</h3>
-                    <p style={{fontSize:'13px', opacity:0.8}}>Upload an Excel workbook where each sheet corresponds to a department (CS, EE, BBA etc.).</p>
-                    <div className="column-guide mt-12" style={{display:'flex', flexWrap:'wrap', gap:'6px'}}>
-                       {['Course Code', 'Course Title', 'Date', 'Day', 'Start Time', 'End Time', 'Venue', 'Section', 'Cr.Hrs'].map(c => <span key={c} className="badge-premium" style={{background:'var(--color-border)', opacity:0.7}}>{c}</span>)}
+                     </div>
+                  </div>
+                ) : (
+                  <div className="excel-import-panel">
+                    <div className="import-instructions mb-24">
+                      <h3>Excel-Driven Institutional Scheduling</h3>
+                      <p style={{fontSize:'13px', opacity:0.8}}>Upload an Excel workbook where each sheet corresponds to a department (CS, EE, BBA etc.).</p>
+                      <div className="column-guide mt-12" style={{display:'flex', flexWrap:'wrap', gap:'6px'}}>
+                         {['Course Code', 'Course Title', 'Date', 'Day', 'Start Time', 'End Time', 'Venue', 'Section', 'Cr.Hrs'].map(c => <span key={c} className="badge-premium" style={{background:'var(--color-border)', opacity:0.7}}>{c}</span>)}
+                      </div>
+                    </div>
+
+                    <div className="upload-zone" id="excel-drop-zone" style={{border:'2px dashed var(--color-border)', borderRadius:'8px', padding:'40px', textAlign:'center', cursor:'pointer', marginBottom:'24px', transition:'all 0.2s'}}>
+                      <div style={{fontSize:'40px', marginBottom:'12px'}}>📊</div>
+                      <p style={{fontWeight:600, margin:0}}>Drag & Drop .xlsx file or click to browse</p>
+                      <input type="file" accept=".xlsx,.xls" onChange={handleExcelFile} style={{display:'none'}} id="excel-input" />
+                      <button className="btn-primary-premium mt-12" onClick={() => document.getElementById('excel-input').click()}>SELECT EXCEL FILE</button>
+                    </div>
+
+                    <div className="semester-field mb-24" style={{maxWidth:'300px'}}>
+                      <label>Semester Label</label>
+                      <input className="input-premium" placeholder="e.g. Spring 2026" value={semesterLabel} onChange={e => setSemesterLabel(e.target.value)} />
                     </div>
                   </div>
-
-                  {user.role === 'Admin' && (
-                    <>
-                      <div className="upload-zone" id="excel-drop-zone" style={{border:'2px dashed var(--color-border)', borderRadius:'8px', padding:'40px', textAlign:'center', cursor:'pointer', marginBottom:'24px', transition:'all 0.2s'}}>
-                        <div style={{fontSize:'40px', marginBottom:'12px'}}>📊</div>
-                        <p style={{fontWeight:600, margin:0}}>Drag & Drop .xlsx file or click to browse</p>
-                        <input type="file" accept=".xlsx,.xls" onChange={handleExcelFile} style={{display:'none'}} id="excel-input" />
-                        <button className="btn-primary-premium mt-12" onClick={() => document.getElementById('excel-input').click()}>SELECT EXCEL FILE</button>
-                      </div>
-
-                      <div className="semester-field mb-24" style={{maxWidth:'300px'}}>
-                        <label>Semester Label</label>
-                        <input className="input-premium" placeholder="e.g. Spring 2026" value={semesterLabel} onChange={e => setSemesterLabel(e.target.value)} />
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Excel Preview Modal */}
-          {previewData && (
-            <div className="modal-overlay-premium fade-in">
-              <div className="card" style={{width:'90vw', maxWidth:'1200px', maxHeight:'90vh', display:'flex', flexDirection:'column', padding:0}}>
-                <div className="modal-header" style={{padding:'24px', borderBottom:'1px solid var(--color-border)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                   <h2 style={{margin:0}}>Parsing Preview — {Object.keys(previewData).length} Depts</h2>
-                   <div style={{display:'flex', gap:'8px'}}>
-                      {Object.keys(previewData).map(dept => (
-                        <button key={dept} className={`badge-premium ${activeDept === dept ? 'badge-primary' : ''}`} style={{cursor:'pointer'}} onClick={() => setActiveDept(dept)}>{dept}</button>
-                      ))}
-                   </div>
-                </div>
-                <div style={{flex:1, overflowY:'auto', padding:'24px'}}>
-                  <table className="premium-table">
-                    <thead><tr><th>Code</th><th>Title</th><th>Date</th><th>Day</th><th>Time</th><th>Venue</th></tr></thead>
-                    <tbody>
-                      {previewData[activeDept]?.map((row, i) => (
-                        <tr key={i}>
-                          <td>{row.course_code}</td>
-                          <td style={{fontWeight:600}}>{row.course_title}</td>
-                          <td>{row.exam_date}</td>
-                          <td>{row.exam_day}</td>
-                          <td>{row.start_time} - {row.end_time}</td>
-                          <td>{row.venue}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="modal-footer" style={{padding:'24px', borderTop:'1px solid var(--color-border)', display:'flex', justifyContent:'flex-end', gap:'12px'}}>
-                  <button className="btn-text-only" onClick={() => setPreviewData(null)}>CANCEL</button>
-                  <button className="btn-primary-premium" disabled={saving} onClick={saveSchedule}>{saving ? 'SYNCHRONIZING...' : 'CONFIRM & SAVE REGISTRY'}</button>
-                </div>
+                )}
               </div>
             </div>
+          ) : (
+            // For Student/Faculty - Just show master PDF button if it exists
+            exams.some(e => e.type === 'pdf_schedule') && (
+              <div className="card mb-32" style={{padding:'32px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div>
+                  <h3 style={{margin:0}}>Official PDF Schedule</h3>
+                  <p style={{margin:'4px 0 0 0', opacity:0.6, fontSize:'13px'}}>Access the official university master examination schedule in PDF format.</p>
+                </div>
+                <button className="btn-primary-premium" onClick={() => window.open(exams.find(e => e.type === 'pdf_schedule').fileURL, '_blank')}>VIEW MASTER PDF</button>
+              </div>
+            )
           )}
 
-          {/* Uploads History */}
-          <div className="view-header-premium mt-24">
-            <h2>Institutional Upload Registry</h2>
-            <p>History of all published exam schedules.</p>
-          </div>
-          
-          {uploads.length === 0 && !error && (
+          {/* Database Setup Warning - Admin Only */}
+          {user.role === 'Admin' && uploads.length === 0 && !error && (
             <div className="card mb-24" style={{border:'1px dashed var(--color-accent)', background:'rgba(201, 164, 53, 0.05)', padding:'24px'}}>
                <h4 style={{margin:0, color:'var(--color-accent)'}}>⚠️ DATABASE SETUP REQUIRED</h4>
                <p style={{fontSize:'13px', margin:'8px 0 0 0', opacity:0.8}}>
@@ -796,6 +824,12 @@ const ExamManagement = ({
                </p>
             </div>
           )}
+
+          {/* Published Excel Sessions */}
+          <div className="view-header-premium mt-24">
+            <h2>{user.role === 'Admin' ? 'Institutional Upload Registry' : 'Published Academic Date Sheets'}</h2>
+            <p>{user.role === 'Admin' ? 'History of all published exam schedules.' : 'Select an active academic session to view your exam schedule.'}</p>
+          </div>
 
           <div className="grid-2-cols" style={{gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))'}}>
             {uploads.map(u => (
@@ -812,98 +846,92 @@ const ExamManagement = ({
                  </div>
               </div>
             ))}
-            {uploads.length === 0 && <div className="card" style={{gridColumn:'1/-1', textAlign:'center', opacity:0.5, padding:'40px'}}>No institutional uploads detected.</div>}
+            {uploads.length === 0 && <div className="card" style={{gridColumn:'1/-1', textAlign:'center', opacity:0.5, padding:'40px'}}>No institutional date sheets published yet.</div>}
           </div>
-        </>
-      )}
 
-      {exams.length > 0 && !selCourse ? (
-        <div className="fade-in">
-          <div className="view-header-premium">
-            <div>
-              <h1>Institutional Date Sheet</h1>
-              <p>Master schedule for Midterm & Terminal assessments.</p>
-            </div>
-            {user.role === 'Admin' && <button className="btn-primary-premium" onClick={() => openForm('exam')}>+ Schedule New Exam</button>}
-          </div>
-          
-          <div className="table-card-premium glass-card p-0">
-            <table className="premium-table">
-              <thead>
-                <tr>
-                  <th>Course Code</th>
-                  <th>Assessment Type</th>
-                  <th>Scheduled Date</th>
-                  <th>Venue</th>
-                  <th>Invigilator</th>
-                  {user.role === 'Admin' && <th>Registry Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {exams.map((e, idx) => (
-                  <tr key={`exam-row-${idx}-${e.id || 'new'}`}>
-                    <td data-label="Course Code" className="font-monospace" style={{fontWeight: 700}}>{e.courseID}</td>
-                    <td data-label="Assessment Type"><span className={`badge-premium ${e.type === 'Final' ? 'badge-primary' : 'badge-gold'}`}>{(e.type || 'Exam').toUpperCase()}</span></td>
-                    <td data-label="Schedule Date" className="font-monospace">{e.date} — {e.time}</td>
-                    <td data-label="Assigned Venue">{e.venue}</td>
-                    <td data-label="Invigilator">{e.invigilator || 'TBA'}</td>
-                    {user.role === 'Admin' && (
-                      <td data-label="Actions">
-                        <div style={{display: 'flex', gap: '8px'}}>
-                          <button className="btn-text-only" style={{color: 'var(--color-accent)'}} onClick={() => openForm('exam', e)}>Edit</button>
-                          <button className="btn-text-only" style={{color: 'var(--color-danger)'}} onClick={() => handleDelete(setExams, e.id, 'Exam Schedule', 'id')}>Remove</button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : !isSelectionComplete ? (
-        <div className="empty-state card" style={{padding: '100px 40px'}}>
-          <div className="empty-state-icon">🔒</div>
-          <h2>Pedagogical Repository Locked</h2>
-          <p>Please select Department, Course, and Section from the header to access evaluations.</p>
-        </div>
-      ) : (
-        <>
-          {activeView === 'overview' && renderOverview()}
-          {activeView === 'entry' && renderMarksEntry()}
-          {activeView === 'summary' && renderSummary()}
-        </>
-      )}
-
-      {/* Add Assessment Modal */}
-      {showAddAsst && (
-        <div className="modal-overlay-premium fade-in">
-           <div className="card" style={{width: '400px', border: '1px solid var(--color-ink)'}}>
-              <h3>Initialize Evaluation</h3>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px'}}>
+          {/* Master Date Sheet List (exams array) */}
+          {exams.length > 0 && (
+            <div className="fade-in mt-32">
+              <div className="view-header-premium">
                 <div>
-                  <label style={{fontSize: '12px', opacity: 0.6}}>Evaluation Type</label>
-                  <select className="input-premium" value={newAsst.type} onChange={e => setNewAsst({...newAsst, type: e.target.value})}>
-                    <option value="quiz">Quiz</option>
-                    <option value="assignment">Assignment</option>
-                    <option value="midterm">Midterm</option>
-                    <option value="final">Final</option>
-                  </select>
+                  <h1>Institutional Date Sheet</h1>
+                  <p>Master schedule for Midterm & Terminal assessments.</p>
                 </div>
-                <div>
-                  <label style={{fontSize: '12px', opacity: 0.6}}>Short Title</label>
-                  <input className="input-premium" placeholder="e.g. Quiz 1" value={newAsst.title} onChange={e => setNewAsst({...newAsst, title: e.target.value})} />
-                </div>
-                <div>
-                  <label style={{fontSize: '12px', opacity: 0.6}}>Total Points</label>
-                  <input type="number" className="input-premium" value={newAsst.total_marks} onChange={e => setNewAsst({...newAsst, total_marks: e.target.value})} />
-                </div>
-                <div style={{display: 'flex', gap: '12px', marginTop: '8px'}}>
-                  <button className="btn-text-only" style={{flex: 1}} onClick={() => setShowAddAsst(false)}>Cancel</button>
-                  <button className="btn-primary-premium" style={{flex: 1}} onClick={handleAddAsst}>Initialize</button>
-                </div>
+                {user.role === 'Admin' && <button className="btn-primary-premium" onClick={() => openForm('exam')}>+ Schedule New Exam</button>}
               </div>
-           </div>
+              
+              <div className="table-card-premium glass-card p-0">
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Course Code</th>
+                      <th>Assessment Type</th>
+                      <th>Scheduled Date</th>
+                      <th>Venue</th>
+                      <th>Invigilator</th>
+                      {user.role === 'Admin' && <th>Registry Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {exams.map((e, idx) => (
+                      <tr key={`exam-row-${idx}-${e.id || 'new'}`}>
+                        <td data-label="Course Code" className="font-monospace" style={{fontWeight: 700}}>{e.courseID}</td>
+                        <td data-label="Assessment Type"><span className={`badge-premium ${e.type === 'Final' ? 'badge-primary' : 'badge-gold'}`}>{(e.type || 'Exam').toUpperCase()}</span></td>
+                        <td data-label="Schedule Date" className="font-monospace">{e.date} — {e.time}</td>
+                        <td data-label="Assigned Venue">{e.venue}</td>
+                        <td data-label="Invigilator">{e.invigilator || 'TBA'}</td>
+                        {user.role === 'Admin' && (
+                          <td data-label="Actions">
+                            <div style={{display: 'flex', gap: '8px'}}>
+                              <button className="btn-text-only" style={{color: 'var(--color-accent)'}} onClick={() => openForm('exam', e)}>Edit</button>
+                              <button className="btn-text-only" style={{color: 'var(--color-danger)'}} onClick={() => handleDelete(setExams, e.id, 'Exam Schedule', 'id')}>Remove</button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Excel Preview Modal (Admin Only) */}
+      {user.role === 'Admin' && previewData && (
+        <div className="modal-overlay-premium fade-in">
+          <div className="card" style={{width:'90vw', maxWidth:'1200px', maxHeight:'90vh', display:'flex', flexDirection:'column', padding:0}}>
+            <div className="modal-header" style={{padding:'24px', borderBottom:'1px solid var(--color-border)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+               <h2 style={{margin:0}}>Parsing Preview — {Object.keys(previewData).length} Depts</h2>
+               <div style={{display:'flex', gap:'8px'}}>
+                  {Object.keys(previewData).map(dept => (
+                    <button key={dept} className={`badge-premium ${activeDept === dept ? 'badge-primary' : ''}`} style={{cursor:'pointer'}} onClick={() => setActiveDept(dept)}>{dept}</button>
+                  ))}
+               </div>
+            </div>
+            <div style={{flex:1, overflowY:'auto', padding:'24px'}}>
+              <table className="premium-table">
+                <thead><tr><th>Code</th><th>Title</th><th>Date</th><th>Day</th><th>Time</th><th>Venue</th></tr></thead>
+                <tbody>
+                  {previewData[activeDept]?.map((row, i) => (
+                    <tr key={i}>
+                      <td>{row.course_code}</td>
+                      <td style={{fontWeight:600}}>{row.course_title}</td>
+                      <td>{row.exam_date}</td>
+                      <td>{row.exam_day}</td>
+                      <td>{row.start_time} - {row.end_time}</td>
+                      <td>{row.venue}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="modal-footer" style={{padding:'24px', borderTop:'1px solid var(--color-border)', display:'flex', justifyContent:'flex-end', gap:'12px'}}>
+              <button className="btn-text-only" onClick={() => setPreviewData(null)}>CANCEL</button>
+              <button className="btn-primary-premium" disabled={saving} onClick={saveSchedule}>{saving ? 'SYNCHRONIZING...' : 'CONFIRM & SAVE REGISTRY'}</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

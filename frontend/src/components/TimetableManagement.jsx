@@ -21,14 +21,19 @@ const TimetableManagement = ({ uploads, setUploads, setEntries }) => {
 
       if (isDatabaseConnected()) {
         const fileName = `${Date.now()}_${file.name}`;
-        const { data: storageData, error: storageError } = await supabase.storage
-          .from('timetables')
-          .upload(fileName, file);
+        try {
+          const { data: storageData, error: storageError } = await supabase.storage
+            .from('timetables')
+            .upload(fileName, file);
 
-        if (storageError) throw storageError;
-        
-        const { data: { publicUrl } } = supabase.storage.from('timetables').getPublicUrl(fileName);
-        fileUrl = publicUrl;
+          if (storageError) throw storageError;
+          
+          const { data: { publicUrl } } = supabase.storage.from('timetables').getPublicUrl(fileName);
+          fileUrl = publicUrl;
+        } catch (storageErr) {
+          console.warn('Supabase storage bucket "timetables" not found. Falling back to local URL:', storageErr);
+          fileUrl = URL.createObjectURL(file);
+        }
 
         const { data: uploadData, error: uploadError } = await supabase.from('timetable_uploads').insert([{
           file_url: fileUrl,
@@ -188,13 +193,17 @@ const TimetableManagement = ({ uploads, setUploads, setEntries }) => {
       try {
         // Delete from storage
         if (upload.storagePath) {
-          await supabase.storage.from('timetables').remove([upload.storagePath]);
+          try {
+            await supabase.storage.from('timetables').remove([upload.storagePath]);
+          } catch (storageErr) {
+            console.warn('Storage deletion failed (bucket likely missing):', storageErr);
+          }
         }
         // Delete from DB (entries will cascade delete if foreign key set to CASCADE)
         await supabase.from('timetable_uploads').delete().eq('id', upload.id);
       } catch (err) {
         console.error('Delete Error:', err);
-        return alert("Failed to delete record from cloud storage.");
+        return alert("Failed to delete record from database: " + err.message);
       }
     }
     setUploads(prev => prev.filter(u => u.id !== upload.id));

@@ -4,6 +4,30 @@ import { supabase, isDatabaseConnected } from '../lib/supabase';
 const load = (key, initial) => JSON.parse(localStorage.getItem(key)) || initial;
 const save = (key, data) => localStorage.setItem(key, JSON.stringify(data));
 
+const safeQuery = async (queryPromise, fallbackData = []) => {
+  try {
+    const { data, error } = await queryPromise;
+    if (error) {
+      console.warn("Supabase query warning:", error.message || error);
+      return { data: fallbackData, error: null };
+    }
+    return { data: data || fallbackData, error: null };
+  } catch (err) {
+    console.warn("Supabase query crash:", err);
+    return { data: fallbackData, error: null };
+  }
+};
+
+const uniqueDepartments = (depts) => {
+  const seen = new Set();
+  return (depts || []).filter(d => {
+    if (!d || !d.departmentID || d.departmentID.trim() === '') return false;
+    const isDuplicate = seen.has(d.departmentID);
+    seen.add(d.departmentID);
+    return !isDuplicate;
+  });
+};
+
 export function useUMSData() {
   const [students, setStudents] = useState(() => load('ums_students_v4', [
     { id: 'S001', dbID: 'a0000000-0000-0000-0000-000000000001', name: 'Amna Pervez', regNumber: 'FA24-BCS-055', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'amna@cui.edu.pk', phone: '+92 321 4567890' },
@@ -35,10 +59,10 @@ export function useUMSData() {
     { courseID: 'CSC211', courseName: 'Discrete Structures', credits: 3, assignedFacultyID: 'VHR-F-004', prerequisites: ['MTH101'] }
   ]));
 
-  const [departments, setDepartments] = useState(() => load('ums_depts_v4', [
+  const [departments, setDepartments] = useState(() => uniqueDepartments(load('ums_depts_v4', [
     { departmentID: 'CS', departmentName: 'Computing', headOfDepartment: 'Dr. Muhammad Nasir' },
     { departmentID: 'BBA', departmentName: 'Management Sciences', headOfDepartment: 'Dr. Saima Jamil' }
-  ]));
+  ])));
 
   const [enrolments, setEnrolments] = useState(() => load('ums_enrolments_v4', [
     { registrationID: 101, studentID: 'S001', courseID: 'CSC101', status: 'Confirmed' },
@@ -115,20 +139,26 @@ export function useUMSData() {
 
       if (isDatabaseConnected()) {
         try {
-          const [resStudents, resFaculty, resCourses, resDepts, resEnrol, resRes, resFin, resPay, resUploads, resEntries, resSessions, resAttend] = await Promise.all([
-             supabase.from('students').select('*'),
-             supabase.from('faculty').select('*'),
-             supabase.from('courses').select('*'),
-             supabase.from('departments').select('*'),
-             supabase.from('enrollments').select('*'),
-             supabase.from('results').select('*'),
-             supabase.from('financials').select('*'),
-             supabase.from('fee_payments').select('*'),
-             supabase.from('timetable_uploads').select('*'),
-             supabase.from('timetable_entries').select('*'),
-             supabase.from('sessions').select('*'),
-             supabase.from('session_attendance').select('*'),
-             supabase.from('fee_structures').select('*')
+          const [
+            resStudents, resFaculty, resCourses, resDepts, resEnrol, 
+            resRes, resFin, resPay, resUploads, resEntries, 
+            resSessions, resAttend, resFeeStructures, resAsst, resMarks
+          ] = await Promise.all([
+             safeQuery(supabase.from('students').select('*')),
+             safeQuery(supabase.from('faculty').select('*')),
+             safeQuery(supabase.from('courses').select('*')),
+             safeQuery(supabase.from('departments').select('*')),
+             safeQuery(supabase.from('enrollments').select('*')),
+             safeQuery(supabase.from('results').select('*')),
+             safeQuery(supabase.from('financials').select('*')),
+             safeQuery(supabase.from('fee_payments').select('*')),
+             safeQuery(supabase.from('timetable_uploads').select('*')),
+             safeQuery(supabase.from('timetable_entries').select('*')),
+             safeQuery(supabase.from('sessions').select('*')),
+             safeQuery(supabase.from('session_attendance').select('*')),
+             safeQuery(supabase.from('fee_structures').select('*')),
+             safeQuery(supabase.from('assessments').select('*')),
+             safeQuery(supabase.from('marks').select('*'))
           ]);
 
           if (resStudents.data?.length) {
@@ -165,88 +195,104 @@ export function useUMSData() {
               localCourses = [...localCourses.filter(c => !fetchedCourses.some(fc => fc.courseID === c.courseID)), ...fetchedCourses];
           }
 
-          if (resDepts.data?.length) setDepartments(resDepts.data.map(d => ({ 
-            departmentID: d.code || d.id, 
-            departmentName: d.name, 
-            headOfDepartment: d.hod_name || 'TBD' 
-          })));
+          if (resDepts.data?.length) {
+            const mapped = resDepts.data.map(d => ({ 
+              departmentID: d.code || d.id, 
+              departmentName: d.name, 
+              headOfDepartment: d.hod_name || 'TBD' 
+            }));
+            setDepartments(uniqueDepartments(mapped));
+          }
           
-          if (resEnrol.data?.length) setEnrolments(resEnrol.data.map(e => ({
-            registrationID: e.id,
-            studentID: e.student_id,
-            courseID: e.course_id || e.course_code,
-            status: e.status || 'Confirmed',
-            registrationDate: e.created_at || '2026-03-20'
-          })));
+          if (resEnrol.data?.length) {
+            setEnrolments(resEnrol.data.map(e => ({
+              registrationID: e.id,
+              studentID: e.student_id,
+              courseID: e.course_id || e.course_code,
+              status: e.status || 'Confirmed',
+              registrationDate: e.created_at || '2026-03-20'
+            })));
+          }
 
-          if (resRes.data?.length) setResults(resRes.data.map(r => ({ 
-            resultID: r.id, 
-            studentID: r.student_id, 
-            courseID: r.course_id || r.course_code, 
-            grade: r.grade, 
-            GPA: r.gpa 
-          })));
+          if (resRes.data?.length) {
+            setResults(resRes.data.map(r => ({ 
+              resultID: r.id, 
+              studentID: r.student_id, 
+              courseID: r.course_id || r.course_code, 
+              grade: r.grade, 
+              GPA: r.gpa 
+            })));
+          }
 
-          if (resFin.data?.length) setFinance(resFin.data.map(f => ({ 
-            recordID: f.id, 
-            studentID: f.student_id, 
-            amountPaid: f.amount_paid || 0, 
-            dueAmount: f.due_amount || 0,
-            totalFee: f.total_fee || 0,
-            semester: f.semester || 'Fall 2024'
-          })));
+          if (resFin.data?.length) {
+            setFinance(resFin.data.map(f => ({ 
+              recordID: f.id, 
+              studentID: f.student_id, 
+              amountPaid: f.amount_paid || 0, 
+              dueAmount: f.due_amount || 0,
+              totalFee: f.total_fee || 0,
+              semester: f.semester || 'Fall 2024'
+            })));
+          }
 
-          if (resPay?.data?.length) setFeePayments(resPay.data.map(p => ({
-            id: p.id,
-            studentID: p.student_id,
-            amountPaid: p.amount_paid,
-            paymentDate: p.payment_date,
-            reference: p.reference
-          })));
+          if (resPay?.data?.length) {
+            setFeePayments(resPay.data.map(p => ({
+              id: p.id,
+              studentID: p.student_id,
+              amountPaid: p.amount_paid,
+              paymentDate: p.payment_date,
+              reference: p.reference
+            })));
+          }
 
-          if (resUploads?.data?.length) setTimetableUploads(resUploads.data.map(u => ({
-            id: u.id,
-            fileURL: u.file_url,
-            type: u.type,
-            semesterLabel: u.semester_label,
-            uploadedAt: u.uploaded_at
-          })));
+          if (resUploads?.data?.length) {
+            setTimetableUploads(resUploads.data.map(u => ({
+              id: u.id,
+              fileURL: u.file_url,
+              type: u.type,
+              semesterLabel: u.semester_label,
+              uploadedAt: u.uploaded_at
+            })));
+          }
 
           if (resEntries?.data?.length) setTimetableEntries(resEntries.data);
 
           if (resSessions?.data?.length) setSessions(resSessions.data);
           if (resAttend?.data?.length) setSessionAttendance(resAttend.data);
 
-          const { data: resFeeStructures } = await supabase.from('fee_structures').select('*');
-          if (resFeeStructures?.length) setFeeStructures(resFeeStructures.map(f => ({
-            id: f.id,
-            departmentID: f.department_id,
-            semester: f.semester,
-            totalFee: f.total_fee
-          })));
+          if (resFeeStructures.data?.length) {
+            setFeeStructures(resFeeStructures.data.map(f => ({
+              id: f.id,
+              departmentID: f.department_id,
+              semester: f.semester,
+              totalFee: f.total_fee
+            })));
+          }
 
-          const { data: resAsst } = await supabase.from('assessments').select('*');
-          if (resAsst?.length) setAssessments(resAsst.map(a => ({
-            id: a.id,
-            courseID: a.course_id,
-            section: a.section,
-            department: a.department,
-            type: a.type,
-            title: a.title,
-            totalMarks: a.total_marks,
-            conductedDate: a.conducted_date,
-            createdBy: a.created_by
-          })));
+          if (resAsst.data?.length) {
+            setAssessments(resAsst.data.map(a => ({
+              id: a.id,
+              courseID: a.course_id,
+              section: a.section,
+              department: a.department,
+              type: a.type,
+              title: a.title,
+              totalMarks: a.total_marks,
+              conductedDate: a.conducted_date,
+              createdBy: a.created_by
+            })));
+          }
 
-          const { data: resMarks } = await supabase.from('marks').select('*');
-          if (resMarks?.length) setMarks(resMarks.map(m => ({
-            id: m.id,
-            assessmentID: m.assessment_id,
-            studentID: m.student_id,
-            obtainedMarks: m.obtained_marks,
-            submittedAt: m.submitted_at,
-            remarks: m.remarks
-          })));
+          if (resMarks.data?.length) {
+            setMarks(resMarks.data.map(m => ({
+              id: m.id,
+              assessmentID: m.assessment_id,
+              studentID: m.student_id,
+              obtainedMarks: m.obtained_marks,
+              submittedAt: m.submitted_at,
+              remarks: m.remarks
+            })));
+          }
 
         } catch (e) {
           console.error("Supabase Data Sync Error:", e);

@@ -2,7 +2,7 @@ import React from 'react';
 
 const ROLES = { ADMIN: 'Admin', STUDENT: 'Student', FACULTY: 'Faculty', FINANCE: 'Finance' };
 
-const Login = ({ onLogin, setStep, loginStep, authData, setAuthData, regSubStep, setRegSubStep, handleRegister, theme, toggleTheme }) => {
+const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authData, setAuthData, regSubStep, setRegSubStep, handleRegister, theme, toggleTheme }) => {
   const isInvertedBtn = {
     background: 'var(--color-ink)',
     color: 'var(--color-bg)',
@@ -114,6 +114,25 @@ const Login = ({ onLogin, setStep, loginStep, authData, setAuthData, regSubStep,
                 {loginStep === 'forgot' ? 'Account Recovery' : `${loginStep} Authentication`}
               </h3>
               
+              {loginError && (
+                <div className="fade-in" style={{
+                  background: 'rgba(239, 68, 68, 0.1)', 
+                  color: '#ef4444', 
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: 'var(--radius)', 
+                  padding: '12px 16px', 
+                  marginBottom: '20px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>⚠️</span>
+                  <span>{loginError}</span>
+                </div>
+              )}
+              
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Identification</label>
@@ -121,7 +140,10 @@ const Login = ({ onLogin, setStep, loginStep, authData, setAuthData, regSubStep,
                     autoFocus 
                     placeholder="Institutional ID / Registration No" 
                     value={authData.id} 
-                    onChange={e => setAuthData({...authData, id: e.target.value})} 
+                    onChange={e => {
+                      setAuthData({...authData, id: e.target.value});
+                      if (setLoginError) setLoginError(null);
+                    }} 
                     onKeyDown={e => e.key === 'Enter' && loginStep !== 'forgot' && onLogin(ROLES[loginStep.toUpperCase()])}
                   />
                 </div>
@@ -133,7 +155,10 @@ const Login = ({ onLogin, setStep, loginStep, authData, setAuthData, regSubStep,
                       type="password" 
                       placeholder="••••••••" 
                       value={authData.password} 
-                      onChange={e => setAuthData({...authData, password: e.target.value})} 
+                      onChange={e => {
+                        setAuthData({...authData, password: e.target.value});
+                        if (setLoginError) setLoginError(null);
+                      }} 
                       onKeyDown={e => e.key === 'Enter' && onLogin(ROLES[loginStep.toUpperCase()])}
                     />
                     <div style={{ textAlign: 'right', marginTop: '8px' }}>

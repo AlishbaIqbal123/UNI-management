@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './index.css';
 import { useUMSData } from './hooks/useUMSData';
+import { supabase, isDatabaseConnected } from './lib/supabase';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import StudentManagement from './components/StudentManagement';
@@ -20,6 +21,8 @@ import Footer from './components/Footer';
 import AcademicResults from './components/AcademicResults';
 import CourseRegistration from './components/CourseRegistration';
 import FacultyWorkspace from './components/FacultyWorkspace';
+import TimetableGrid from './components/TimetableGrid';
+import TimetableManagement from './components/TimetableManagement';
 import { generateInstitutionalReport } from './lib/exportUtils';
 
 
@@ -52,6 +55,7 @@ function App() {
   const [loginStep, setLoginStep] = useState('choice'); 
   const [regSubStep, setRegSubStep] = useState(1);
   const [authData, setAuthData] = useState({ id: '', name: '', password: '', program: '', email: '' });
+  const [loginError, setLoginError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalCtx, setModalCtx] = useState({ type: '', data: null });
   const [formData, setFormData] = useState({});
@@ -79,6 +83,7 @@ function App() {
     exams, setExams, feePayments, setFeePayments,
     timetableUploads, setTimetableUploads, timetableEntries, setTimetableEntries,
     sessions, setSessions, sessionAttendance, setSessionAttendance,
+    feeStructures, setFeeStructures,
     loading
   } = useUMSData();
 
@@ -190,6 +195,114 @@ function App() {
         return;
     }
 
+    if (modalCtx.type === 'payment') {
+      const amount = parseFloat(formData.amount);
+      if (isNaN(amount) || amount <= 0) {
+        notify("Please enter a valid payment amount.", "error");
+        return;
+      }
+      
+      const reference = formData.description || "Semester Tuition Fee";
+      const studentID = modalCtx.data.studentID;
+      const studentName = modalCtx.data.studentName || modalCtx.data.name || "Student";
+      const paymentDate = new Date().toISOString().split('T')[0];
+      
+      const executeSave = async () => {
+        const payload = {
+          student_id: studentID,
+          amount: amount,
+          date: paymentDate,
+          reference: reference,
+          semester: modalCtx.data.semester || 'Fall 2024'
+        };
+        
+        if (isDatabaseConnected()) {
+          try {
+            const { data, error } = await supabase
+              .from('fee_payments')
+              .insert([payload])
+              .select();
+            if (error) throw error;
+            if (data && data[0]) {
+              const newPayment = {
+                id: data[0].id,
+                studentID: data[0].student_id,
+                amountPaid: data[0].amount,
+                paymentDate: data[0].date,
+                reference: data[0].reference,
+                semester: data[0].semester
+              };
+              setFeePayments(prev => [...prev, newPayment]);
+            }
+          } catch (e) {
+            console.error("DB payment insertion failed, falling back:", e);
+            notify("Database save failed. Recorded locally.", "error");
+            const localPay = {
+              id: `pay-${Date.now()}`,
+              studentID,
+              amountPaid: amount,
+              paymentDate,
+              reference,
+              semester: payload.semester
+            };
+            setFeePayments(prev => [...prev, localPay]);
+          }
+        } else {
+          const localPay = {
+            id: `pay-${Date.now()}`,
+            studentID,
+            amountPaid: amount,
+            paymentDate,
+            reference,
+            semester: payload.semester
+          };
+          setFeePayments(prev => [...prev, localPay]);
+        }
+        
+        // Also update the matching financials record in state if it exists, or create a mock financials record
+        setFinance(prev => {
+          const existingIdx = prev.findIndex(f => f.studentID === studentID);
+          if (existingIdx > -1) {
+            const copy = [...prev];
+            const oldRecord = copy[existingIdx];
+            const updatedPaid = (parseFloat(oldRecord.amountPaid) || 0) + amount;
+            const updatedDue = Math.max(0, (parseFloat(oldRecord.totalFee) || 0) - updatedPaid);
+            copy[existingIdx] = {
+              ...oldRecord,
+              amountPaid: updatedPaid,
+              dueAmount: updatedDue
+            };
+            return copy;
+          } else {
+            // Find student's department fee structure
+            const studentRecord = students.find(s => s.id === studentID);
+            let totalFee = 0;
+            if (studentRecord) {
+              const prog = (studentRecord.program || '').toLowerCase();
+              const dept = (prog.includes('computer') || prog.includes('software') || prog.includes('cs')) ? 'CS' : 'BBA';
+              const sem = studentRecord.batch || 'Fall 2024';
+              const struct = feeStructures.find(fs => fs.departmentID === dept && fs.semester === sem);
+              totalFee = struct ? struct.totalFee : 120000;
+            }
+            return [...prev, {
+              recordID: `fin-${Date.now()}`,
+              studentID,
+              amountPaid: amount,
+              dueAmount: Math.max(0, totalFee - amount),
+              totalFee,
+              semester: studentRecord?.batch || 'Fall 2024'
+            }];
+          }
+        });
+        
+        notify(`Fee payment of PKR ${amount.toLocaleString()} recorded for ${studentName}.`);
+        setIsModalOpen(false);
+      };
+      
+      executeSave();
+      return;
+    }
+
     const { type, data } = modalCtx;
     const setters = { student: setStudents, faculty: setFaculty, finance: setFinance, courses: setCourses, department: setDepartments, exam: setExams, upload_exam_pdf: setExams };
     const setter = setters[type];
@@ -289,10 +402,12 @@ function App() {
         notify(`Authorized as ${finalRole}`); 
         switchTab('dashboard'); 
         setAppView('portal');
+        setLoginError(null);
     }
 
     else {
         console.error(`[Auth] Failed: No match for ${inputID} in ${role} registry.`);
+        setLoginError("Login credentials are incorrect");
         notify("Credentials Invalid. Try clicking 'Reset Institutional Cache' below.", "error");
     }
   };
@@ -349,7 +464,7 @@ function App() {
   );
   if (appView === 'login') return (
     <div className="login-page-root" style={{display:'flex', flexDirection:'column', minHeight:'100vh', height: '100vh', overflowY: 'auto', overflowX: 'hidden'}}>
-      <Login onLogin={handleLogin} setStep={(s) => { setLoginStep(s); setRegSubStep(1); setAuthData({id:'', name:'', password:'', program: '', email: ''}); }} loginStep={loginStep} authData={authData} setAuthData={setAuthData} handleRegister={handleRegister} regSubStep={regSubStep} setRegSubStep={setRegSubStep} theme={theme} toggleTheme={toggleTheme} />
+      <Login onLogin={handleLogin} loginError={loginError} setLoginError={setLoginError} setStep={(s) => { setLoginStep(s); setRegSubStep(1); setAuthData({id:'', name:'', password:'', program: '', email: ''}); setLoginError(null); }} loginStep={loginStep} authData={authData} setAuthData={setAuthData} handleRegister={handleRegister} regSubStep={regSubStep} setRegSubStep={setRegSubStep} theme={theme} toggleTheme={toggleTheme} />
       <Footer />
     </div>
   );
@@ -709,10 +824,15 @@ function App() {
           </div>
         );
       case 'my-timetable':
-        const studentBatch = user.batch || (students.find(s => s.id === user.id || s.dbID === user.id)?.batch);
-        const myStudentEntries = studentBatch ? timetableEntries.filter(e => e.owner_label === studentBatch || e.owner_label.includes(studentBatch)) : [];
+        const studentRecord = students.find(s => s.id === user.id || s.dbID === user.id);
+        const studentBatch = user.batch || studentRecord?.batch;
+        const studentSection = user.section || studentRecord?.section || 'A';
+        const myStudentEntries = studentBatch ? timetableEntries.filter(e => 
+          (e.owner_label === studentBatch || e.owner_label.includes(studentBatch)) &&
+          (!e.section || e.section.toLowerCase() === studentSection.toLowerCase())
+        ) : [];
         if (timetableUploads.length === 0) return <div className="p-40 text-center"><h2 style={{opacity:0.5}}>Timetable not yet published by admin</h2></div>;
-        return <TimetableGrid entries={myStudentEntries} title={`My Timetable (${studentBatch || 'General'})`} />;
+        return <TimetableGrid entries={myStudentEntries} title={`My Timetable (${studentBatch || 'General'} - Section ${studentSection})`} />;
 
       case 'enrolments': 
         return <EnrollmentManagement enrolments={enrolments} setEnrolments={setEnrolments} students={students} courses={courses} notify={notify} />;
@@ -1214,37 +1334,46 @@ function App() {
                         const fileExt = file.name.split('.').pop();
                         const fileName = `exam_schedule_${Date.now()}.${fileExt}`;
                         const filePath = `schedules/${fileName}`;
-
+                        
                         if (isDatabaseConnected()) {
-                          const { data, error } = await supabase.storage
-                            .from('institutional-documents')
-                            .upload(filePath, file);
+                           let finalUrl = '';
+                           try {
+                             const { data, error } = await supabase.storage
+                               .from('institutional-documents')
+                               .upload(filePath, file);
 
-                          if (error) throw error;
+                             if (error) throw error;
 
-                          const { data: { publicUrl } } = supabase.storage
-                            .from('institutional-documents')
-                            .getPublicUrl(filePath);
+                             const { data: { publicUrl } } = supabase.storage
+                               .from('institutional-documents')
+                               .getPublicUrl(filePath);
 
-                          setFormData({ 
-                            ...formData, 
-                            fileURL: publicUrl, 
-                            fileName: file.name,
-                            type: 'pdf_schedule',
-                            id: modalCtx.data?.id || 'pdf_schedule_master' 
-                          });
-                          notify("Institutional Schedule Uploaded Successfully");
-                        } else {
-                          // Mock for local/offline testing
-                          setFormData({ 
-                            ...formData, 
-                            fileURL: URL.createObjectURL(file), 
-                            fileName: file.name,
-                            type: 'pdf_schedule',
-                            id: 'pdf_schedule_master' 
-                          });
-                          notify("Local Cache: Schedule linked (Offline Mode)");
-                        }
+                             finalUrl = publicUrl;
+                             notify("Institutional Schedule Uploaded Successfully");
+                           } catch (storageErr) {
+                             console.warn('Supabase storage bucket "institutional-documents" not found. Falling back to local URL:', storageErr);
+                             finalUrl = URL.createObjectURL(file);
+                             notify("Bucket Not Configured: Schedule loaded via Local Fallback", "info");
+                           }
+
+                           setFormData({ 
+                             ...formData, 
+                             fileURL: finalUrl, 
+                             fileName: file.name,
+                             type: 'pdf_schedule',
+                             id: modalCtx.data?.id || 'pdf_schedule_master' 
+                           });
+                         } else {
+                           // Mock for local/offline testing
+                           setFormData({ 
+                             ...formData, 
+                             fileURL: URL.createObjectURL(file), 
+                             fileName: file.name,
+                             type: 'pdf_schedule',
+                             id: 'pdf_schedule_master' 
+                           });
+                           notify("Local Cache: Schedule linked (Offline Mode)");
+                         }
                      } catch (err) {
                         console.error(err);
                         notify("Upload failed: " + err.message, "error");

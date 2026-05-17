@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase, isDatabaseConnected } from '../lib/supabase';
 
-const FinanceManagement = ({ user, feeStructures, setFeeStructures, departments, students, feePayments }) => {
+const FinanceManagement = ({ user, feeStructures, setFeeStructures, departments, students, feePayments, openForm }) => {
   const [activeForm, setActiveForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({ departmentID: '', semester: 'Fall 2024', totalFee: '' });
@@ -233,7 +233,7 @@ const FinanceManagement = ({ user, feeStructures, setFeeStructures, departments,
                 required
               >
                 <option value="">Select Department...</option>
-                {departments.map(d => <option key={d.departmentID} value={d.departmentID}>{d.departmentName} ({d.departmentID})</option>)}
+                {departments.map((d, idx) => <option key={`${d.departmentID}-${idx}`} value={d.departmentID}>{d.departmentName} ({d.departmentID})</option>)}
               </select>
             </div>
             <div>
@@ -321,6 +321,98 @@ const FinanceManagement = ({ user, feeStructures, setFeeStructures, departments,
           </table>
         </div>
       </div>
+
+      {isFinanceOfficer && (
+        <div className="card mt-32" style={{ padding: 0, marginTop: '32px' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0, fontSize: '16px' }}>Student Fee Ledger & Payments</h3>
+            <span style={{ fontSize: '12px', opacity: 0.6 }}>{students.length} Student Record(s)</span>
+          </div>
+          
+          <div className="table-wrapper">
+            <table className="min-w-table">
+              <thead>
+                <tr>
+                  <th>Student Information</th>
+                  <th>Standard Fee</th>
+                  <th>Total Paid</th>
+                  <th>Outstanding Dues</th>
+                  <th>Ledger Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.length === 0 && (
+                  <tr>
+                    <td colSpan="6">
+                      <div className="empty-state">
+                        <div className="empty-state-icon">👥</div>
+                        <p>No student records exist in the system registry.</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {students.map(s => {
+                  const dept = getStudentDept(s);
+                  const semester = s.batch || 'Fall 2024';
+                  
+                  // Find structure
+                  const struct = feeStructures.find(fs => fs.departmentID === dept && fs.semester === semester);
+                  const standardFee = struct ? parseFloat(struct.totalFee) : 120000;
+                  
+                  // Total Paid
+                  const paid = feePayments
+                    ? feePayments.filter(fp => fp.studentID === s.id || fp.studentID === s.dbID).reduce((acc, curr) => acc + (parseFloat(curr.amountPaid) || 0), 0)
+                    : 0;
+                    
+                  const balance = Math.max(0, standardFee - paid);
+                  const isCleared = balance <= 0;
+                  
+                  return (
+                    <tr key={s.id || s.dbID}>
+                      <td data-label="Student Information">
+                        <div style={{ fontWeight: 600 }}>{s.name}</div>
+                        <span className="hint">{s.program || 'Undergraduate'} • Batch {semester}</span>
+                      </td>
+                      <td data-label="Standard Fee" style={{ fontWeight: 600 }}>
+                        PKR {standardFee.toLocaleString()}
+                      </td>
+                      <td data-label="Total Paid" style={{ fontWeight: 600, color: 'var(--color-accent)' }}>
+                        PKR {paid.toLocaleString()}
+                      </td>
+                      <td data-label="Outstanding Dues" style={{ fontWeight: 700, color: isCleared ? 'var(--color-accent)' : 'var(--color-danger)' }}>
+                        PKR {balance.toLocaleString()}
+                      </td>
+                      <td data-label="Ledger Status">
+                        <span className={`badge-premium ${isCleared ? 'badge-primary' : 'badge-danger'}`} style={{
+                          background: isCleared ? 'rgba(74, 103, 133, 0.1)' : 'rgba(166, 61, 64, 0.1)',
+                          color: isCleared ? 'var(--color-accent)' : 'var(--color-danger)',
+                          border: isCleared ? '1px solid var(--color-accent)' : '1px solid var(--color-danger)',
+                          fontSize: '11px',
+                          padding: '4px 8px',
+                          borderRadius: '3px',
+                          fontWeight: 'bold'
+                        }}>
+                          {isCleared ? '✓ CLEARED' : '⚠ PENDING'}
+                        </span>
+                      </td>
+                      <td data-label="Actions" style={{ textAlign: 'right' }}>
+                        <button 
+                          className="btn-primary-premium" 
+                          style={{ padding: '8px 16px', fontSize: '12px', height: '34px', background: isCleared ? 'var(--color-border)' : 'var(--color-accent)', color: isCleared ? 'var(--color-ink)' : 'white' }}
+                          onClick={() => openForm('payment', { studentID: s.id, studentName: s.name, semester: semester })}
+                        >
+                          Record Payment
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
