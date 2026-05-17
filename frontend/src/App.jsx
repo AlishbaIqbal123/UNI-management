@@ -62,6 +62,7 @@ function App() {
   const [notifs, setNotifs] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, setter: null, id: null, typeName: '', idKey: 'id' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedTimetableClass, setSelectedTimetableClass] = useState('');
   
   // Advanced Academic Calendar State
 
@@ -823,7 +824,7 @@ function App() {
             </div>
           </div>
         );
-      case 'my-timetable':
+      case 'my-timetable': {
         const studentRecord = students.find(s => s.id === user.id || s.dbID === user.id);
         const studentBatch = user.batch || studentRecord?.batch;
         const studentSection = user.section || studentRecord?.section || 'A';
@@ -862,18 +863,56 @@ function App() {
           return hasBatch && hasSection && hasProgram;
         };
 
-        const myStudentEntries = studentBatch ? timetableEntries.filter(e => {
-          if (e.timetable_type === 'teacher') return false;
-          
-          // Direct matching (if owner matches Fall 2024 or similar)
-          if (e.owner_label === studentBatch || e.owner_label?.includes(studentBatch)) return true;
-          
-          // Heuristic matching (if owner matches program-batch-section e.g., FA24-BCS-A)
-          return isStudentTimetableMatch(e.owner_label, studentRecord || { batch: studentBatch, section: studentSection });
-        }) : [];
+        // Extract all distinct student classes uploaded
+        const availableClasses = [...new Set(
+          timetableEntries
+            .filter(e => e.timetable_type === 'student')
+            .map(e => e.owner_label)
+        )].sort();
+
+        // Determine default class for student
+        let defaultClass = selectedTimetableClass;
+        if (!defaultClass) {
+          const matched = availableClasses.find(c => isStudentTimetableMatch(c, studentRecord || { batch: studentBatch, section: studentSection }));
+          defaultClass = matched || availableClasses[0] || '';
+        }
+
+        const myStudentEntries = timetableEntries.filter(e => e.timetable_type === 'student' && e.owner_label === defaultClass);
 
         if (timetableUploads.length === 0) return <div className="p-40 text-center"><h2 style={{opacity:0.5}}>Timetable not yet published by admin</h2></div>;
-        return <TimetableGrid entries={myStudentEntries} title={`My Timetable (${studentBatch || 'General'} - Section ${studentSection})`} />;
+
+        return (
+          <div className="fade-in">
+            {availableClasses.length > 0 && (
+              <div className="glass-card" style={{ padding: '20px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div>
+                  <h4 style={{ margin: 0, opacity: 0.8 }}>Class Stream Selector</h4>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.6 }}>
+                    Select any published department schedule to view slot layouts.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, opacity: 0.7 }}>Active View:</span>
+                  <select 
+                    value={defaultClass} 
+                    onChange={(e) => setSelectedTimetableClass(e.target.value)}
+                    className="form-input-premium"
+                    style={{ minWidth: '200px', padding: '8px 12px', margin: 0 }}
+                  >
+                    {availableClasses.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+            <TimetableGrid 
+              entries={myStudentEntries} 
+              title={`My Timetable (${defaultClass || studentBatch || 'General'})`} 
+            />
+          </div>
+        );
+      }
 
       case 'enrolments': 
         return <EnrollmentManagement enrolments={enrolments} setEnrolments={setEnrolments} students={students} courses={courses} notify={notify} />;

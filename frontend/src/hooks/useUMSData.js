@@ -29,9 +29,9 @@ const uniqueDepartments = (depts) => {
 };
 
 export function useUMSData() {
-  const [students, setStudents] = useState(() => load('ums_students_v4', [
+  const [students, setStudents] = useState(() => load('ums_students_v5', [
     { id: 'S001', dbID: 'a0000000-0000-0000-0000-000000000001', name: 'Amna Pervez', regNumber: 'FA24-BCS-055', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'amna@cui.edu.pk', phone: '+92 321 4567890' },
-    { id: 'S002', dbID: 'a0000000-0000-0000-0000-000000000002', name: 'Maham Shaukat', regNumber: 'SP25-BSE-012', batch: 'Spring 2025', section: 'B', program: 'BS Software Engineering', password: '123', email: 'maham@cui.edu.pk', phone: '+92 333 9876543' },
+    { id: 'S002', dbID: 'a0000000-0000-0000-0000-000000000002', name: 'Maham Shaukat', regNumber: 'SP25-BCS-012', batch: 'Spring 2025', section: 'A', program: 'BS Computer Science', password: '123', email: 'maham@cui.edu.pk', phone: '+92 333 9876543' },
     { id: 'S003', dbID: 'a0000000-0000-0000-0000-000000000003', name: 'Ali Hassan', regNumber: 'FA24-BCS-003', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'ali@cui.edu.pk', phone: '+92 300 1122334' },
     { id: 'S004', dbID: 'a0000000-0000-0000-0000-000000000004', name: 'Ayesha Malik', regNumber: 'SP26-BSE-045', batch: 'Spring 2026', section: 'A', program: 'BS Software Engineering', password: '123', email: 'ayesha@cui.edu.pk', phone: '+92 315 5566778' },
     { id: 'S005', dbID: 'a0000000-0000-0000-0000-000000000005', name: 'Kamran Ahmed', regNumber: 'FA24-BCS-005', batch: 'Fall 2024', section: 'B', program: 'BS Computer Science', password: '123', email: 'kamran@cui.edu.pk', phone: '+92 345 8899001' },
@@ -119,7 +119,7 @@ export function useUMSData() {
   const [sessionAttendance, setSessionAttendance] = useState(() => load('ums_session_attendance_v1', []));
 
   useEffect(() => {
-    save('ums_students_v4', students); save('ums_faculty_v4', faculty);
+    save('ums_students_v5', students); save('ums_faculty_v4', faculty);
     save('ums_courses_v4', courses); save('ums_depts_v4', departments);
     save('ums_enrolments_v4', enrolments); save('ums_results_v4', results);
     save('ums_finance_v4', finance); save('ums_attendance_v4', attendance);
