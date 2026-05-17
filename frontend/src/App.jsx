@@ -827,10 +827,51 @@ function App() {
         const studentRecord = students.find(s => s.id === user.id || s.dbID === user.id);
         const studentBatch = user.batch || studentRecord?.batch;
         const studentSection = user.section || studentRecord?.section || 'A';
-        const myStudentEntries = studentBatch ? timetableEntries.filter(e => 
-          (e.owner_label === studentBatch || e.owner_label.includes(studentBatch)) &&
-          (!e.section || e.section.toLowerCase() === studentSection.toLowerCase())
-        ) : [];
+        
+        // Dynamic timetable match helper functions
+        const getBatchCode = (batchStr) => {
+          if (!batchStr) return "";
+          const clean = batchStr.toLowerCase().trim();
+          const year = clean.match(/\d+/)?.[0]?.slice(-2) || "";
+          if (clean.includes("fall")) return `FA${year}`;
+          if (clean.includes("spring")) return `SP${year}`;
+          return batchStr;
+        };
+
+        const isStudentTimetableMatch = (ownerLabel, student) => {
+          if (!ownerLabel || !student) return false;
+          const label = ownerLabel.toUpperCase().replace(/\s+/g, '');
+          const batchCode = getBatchCode(student.batch || '').toUpperCase();
+          const section = (student.section || 'A').toUpperCase();
+          const prog = (student.program || '').toUpperCase();
+          const reg = (student.regNumber || '').toUpperCase();
+          
+          const hasBatch = label.includes(batchCode);
+          const hasSection = label.endsWith(section) || label.includes(`-${section}`) || label.includes(section);
+          
+          let hasProgram = false;
+          if (prog.includes("COMPUTER") || prog.includes("CS") || reg.includes("BCS")) {
+            hasProgram = label.includes("BCS") || label.includes("CS");
+          } else if (prog.includes("SOFTWARE") || prog.includes("SE") || reg.includes("BSE")) {
+            hasProgram = label.includes("BSE") || label.includes("SE");
+          } else if (prog.includes("BUSINESS") || prog.includes("BBA") || reg.includes("BBA")) {
+            hasProgram = label.includes("BBA");
+          } else {
+            hasProgram = true; 
+          }
+          return hasBatch && hasSection && hasProgram;
+        };
+
+        const myStudentEntries = studentBatch ? timetableEntries.filter(e => {
+          if (e.timetable_type === 'teacher') return false;
+          
+          // Direct matching (if owner matches Fall 2024 or similar)
+          if (e.owner_label === studentBatch || e.owner_label?.includes(studentBatch)) return true;
+          
+          // Heuristic matching (if owner matches program-batch-section e.g., FA24-BCS-A)
+          return isStudentTimetableMatch(e.owner_label, studentRecord || { batch: studentBatch, section: studentSection });
+        }) : [];
+
         if (timetableUploads.length === 0) return <div className="p-40 text-center"><h2 style={{opacity:0.5}}>Timetable not yet published by admin</h2></div>;
         return <TimetableGrid entries={myStudentEntries} title={`My Timetable (${studentBatch || 'General'} - Section ${studentSection})`} />;
 
