@@ -1000,3 +1000,19 @@ label {
 .program-filter      { margin-bottom:10px; }
 .error-msg           { color:var(--color-danger); font-size:13px; margin:8px 0; }
 
+/* --- High Contrast Dark Mode Theme Overrides for Ink-Background Elements --- */
+[data-theme="dark"] .dept-tab.active,
+[data-theme="dark"] .tab-pill.active,
+[data-theme="dark"] .btn-primary {
+  background: var(--color-ink) !important;
+  color: var(--color-bg) !important;
+  border-color: var(--color-ink) !important;
+}
+
+[data-theme="dark"] .dept-tab.active .dept-count,
+[data-theme="dark"] .tab-pill.active .dept-count {
+  background: rgba(0, 0, 0, 0.12) !important;
+  color: var(--color-bg) !important;
+}
+
+

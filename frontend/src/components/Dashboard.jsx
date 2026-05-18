@@ -4,7 +4,83 @@ import React from 'react';
  * Dashboard — Role-aware institutional command center.
  * Students see ONLY their own stats. Faculty see their own workload. Admin sees all.
  */
-const Dashboard = ({ stats, user, notices, onAction }) => {
+const Dashboard = ({ stats, user, notices, feeStructures, students, onAction }) => {
+  const [dismissedNotificationIds, setDismissedNotificationIds] = React.useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('ums_dismissed_fees')) || [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const getStudentFeeNotification = () => {
+    if (user.role !== 'Student') return null;
+    
+    // Find the student record matching user ID/regNumber
+    const studentRecord = students?.find(s => s.id === user.id || s.dbID === user.id || s.regNumber === user.regNumber);
+    if (!studentRecord) return null;
+    
+    // Smart semester calculation
+    const getStudentSemester = (s) => {
+      if (s.currentSemester) return parseInt(s.currentSemester);
+      const batch = s.batch || '';
+      if (batch.includes('Spring 2026')) return 1;
+      if (batch.includes('Fall 2025')) return 2;
+      if (batch.includes('Spring 2025')) return 3;
+      if (batch.includes('Fall 2024')) return 4;
+      if (batch.includes('Spring 2024')) return 5;
+      if (batch.includes('Fall 2023')) return 6;
+      if (batch.includes('Spring 2023')) return 7;
+      if (batch.includes('Fall 2022')) return 8;
+      return 1;
+    };
+    
+    const currentSemNum = getStudentSemester(studentRecord);
+    const studentProgram = studentRecord.program || '';
+    const studentDeptCode = studentRecord.departmentID || 'CS'; // fallback
+    
+    // Check active fee structures for matches
+    const activeTerm = 'Spring 2026'; // current academic term
+    
+    const matchingStructure = feeStructures?.find(fs => {
+      // 1. Dismissed check
+      if (dismissedNotificationIds.includes(fs.id || fs.recordID)) return false;
+      
+      // 2. Department match (check full program name or department code)
+      const deptMatch = 
+        fs.departmentID === studentProgram || 
+        fs.department_id === studentProgram ||
+        fs.departmentID === studentDeptCode || 
+        fs.department_id === studentDeptCode ||
+        (studentProgram.toLowerCase().includes('software') && (fs.departmentID || fs.department_id || '').toLowerCase().includes('software')) ||
+        (studentProgram.toLowerCase().includes('computer') && (fs.departmentID || fs.department_id || '').toLowerCase().includes('computer'));
+      
+      if (!deptMatch) return false;
+      
+      // 3. Semester match (checks for Semester X or Sem X in the string)
+      const structureSemester = fs.semester || '';
+      const semMatch = 
+        structureSemester === `${activeTerm} - Semester ${currentSemNum}` ||
+        structureSemester === `${activeTerm} - Sem ${currentSemNum}` ||
+        (structureSemester.includes(activeTerm) && (structureSemester.includes(`Semester ${currentSemNum}`) || structureSemester.includes(`Sem ${currentSemNum}`))) ||
+        structureSemester === activeTerm; // fallback
+        
+      return semMatch;
+    });
+    
+    return matchingStructure;
+  };
+
+  const handleDismissFeeNotification = (feeId) => {
+    const updated = [...dismissedNotificationIds, feeId];
+    setDismissedNotificationIds(updated);
+    localStorage.setItem('ums_dismissed_fees', JSON.stringify(updated));
+    if (onAction) {
+      onAction('NOTIFICATION_DISMISSED', feeId);
+    }
+  };
+
+  const activeFeeNotification = getStudentFeeNotification();
 
   const getIconSvg = (id) => {
     switch (id) {
@@ -133,6 +209,57 @@ const Dashboard = ({ stats, user, notices, onAction }) => {
         <p className="page-date">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
       </div>
 
+      {activeFeeNotification && (
+        <div className="fee-notification-banner fade-in" style={{
+          background: 'linear-gradient(135deg, rgba(201, 164, 53, 0.15) 0%, rgba(26, 58, 107, 0.1) 100%)',
+          borderLeft: '4px solid var(--color-accent)',
+          borderRadius: '8px',
+          padding: '20px 24px',
+          marginBottom: '32px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '24px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(201, 164, 53, 0.2)'
+        }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div style={{ fontSize: '28px' }}>💰</div>
+            <div>
+              <h4 style={{ margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700', color: 'var(--color-ink)', letterSpacing: '0.5px' }}>
+                SEMESTER FEE NOTIFICATION (SPRING 2026)
+              </h4>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-ink-muted)', lineHeight: '1.4' }}>
+                The standard tuition fee for <strong>{user.program || 'BSCS'} ({activeFeeNotification.semester.split(' - ')[1] || 'Semester 1'})</strong> has been configured as <strong>PKR {parseFloat(activeFeeNotification.totalFee || activeFeeNotification.total_fee).toLocaleString()}</strong>.
+              </p>
+              <span style={{ fontSize: '11px', color: 'var(--color-accent)', fontWeight: '600', display: 'block', marginTop: '4px' }}>
+                * This notice is informational and does not restrict your portal access.
+              </span>
+            </div>
+          </div>
+          <button 
+            className="finance-btn-record"
+            style={{
+              whiteSpace: 'nowrap',
+              padding: '10px 20px',
+              fontSize: '12px',
+              borderRadius: '4px',
+              fontWeight: '700',
+              background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dark) 100%)',
+              color: 'white',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(201,164,53,0.3)',
+              transition: 'all 0.2s'
+            }}
+            onClick={() => handleDismissFeeNotification(activeFeeNotification.id || activeFeeNotification.recordID)}
+          >
+            ✓ Mark as Paid
+          </button>
+        </div>
+      )}
+
       <div className="stats-grid">
         {stats.map((stat, idx) => (
           <div
@@ -218,9 +345,9 @@ const Dashboard = ({ stats, user, notices, onAction }) => {
          </h3>
           <div style={{marginTop:'16px'}}>
             {[
-              { id:1, text: "Course Catalog updated with 5 new modules", time: "2h ago" },
-              { id:2, text: "Dr. Nasir Ahmed posted Midterm results for CSC112", time: "5h ago" },
-              { id:3, text: "Finance portal maintenance window scheduled for tonight", time: "1d ago" }
+              { id:1, text: "Course Catalog updated — 31 courses across 7 departments now active", time: "2h ago" },
+              { id:2, text: "Dr. Aqeel Ur Rehman posted Midterm results for CSC421 (Public Key Cryptography)", time: "5h ago" },
+              { id:3, text: "Finance Office: Spring 2026 fee challans generated for all programs", time: "1d ago" }
             ].map(item => (
               <div key={item.id} style={{display:'flex', justifyContent:'space-between', padding:'12px 0', borderBottom:'1px solid var(--color-border)'}}>
                  <p style={{opacity:0.8}}>• {item.text}</p>

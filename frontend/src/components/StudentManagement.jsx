@@ -26,7 +26,7 @@ const StudentManagement = ({ students, finance, feePayments, openForm, handleDel
     
     return pending === 0 
       ? { label: 'CLEARED', color: 'white', bg: 'var(--color-accent)' } 
-      : { label: 'RESTRICTED', color: 'white', bg: 'var(--color-danger)' };
+      : { label: 'PENDING', color: 'white', bg: 'var(--color-danger)' };
   };
 
   return (

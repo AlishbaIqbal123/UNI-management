@@ -31,12 +31,15 @@ const FacultyManagement = ({ faculty, openForm, handleDelete, setFaculty }) => {
         </div>
       </div>
 
-      <div className="card" style={{padding:'16px 20px', display:'flex', alignItems:'center', gap:'16px', marginBottom: '24px'}}>
-         <span className="hint" style={{fontWeight:700, whiteSpace:'nowrap'}}>SEARCH REGISTRY:</span>
+      <div className="card" style={{padding:'12px 20px', display:'flex', alignItems:'center', gap:'12px', marginBottom: '24px'}}>
+         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.8}}>
+           <circle cx="11" cy="11" r="8"></circle>
+           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+         </svg>
          <input 
-            placeholder="Search by faculty name or employee ID number..." 
+            placeholder="Search registry by staff name or employee ID (e.g. VHR-F-001)..." 
             className="input-transparent-premium"
-            style={{flex:1, border:'none', background:'transparent', outline:'none', fontSize:'14px'}} 
+            style={{flex:1, border:'none', background:'transparent', outline:'none', fontSize:'14px', color:'var(--color-ink)'}} 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
          />

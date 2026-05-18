@@ -148,13 +148,14 @@ function App() {
     );
     
     const fac = faculty.find(f => 
-      f.id.toLowerCase() === regNo.toLowerCase()
+      f.id.toLowerCase() === regNo.toLowerCase() ||
+      (f.email && f.email.toLowerCase() === regNo.toLowerCase())
     );
     
     let userFound = student || fac;
     if (!userFound) {
-      alert("No student or faculty account was found matching the entered Registration Number / ID. Please check and try again.");
-      return;
+      notify("No student or faculty account was found matching the entered ID/Email. Please check and try again.", "error");
+      return false;
     }
 
     const newRequest = {
@@ -184,11 +185,12 @@ function App() {
       }
 
       setPasswordResetRequests(prev => [newRequest, ...prev]);
-      alert(`Account recovery submitted successfully for ${newRequest.name} (${newRequest.regNo})! Please ask the system administrator to approve your reset request.`);
-      setLoginStep('choice');
+      notify(`Account recovery submitted successfully for ${newRequest.name}!`, "success");
+      return true;
     } catch (e) {
       console.error("Failed to submit recovery request", e);
-      alert("Error: Unable to submit recovery request at this time.");
+      notify("Error: Unable to submit recovery request at this time.", "error");
+      return false;
     }
   };
 
@@ -236,9 +238,30 @@ function App() {
     if (modalCtx.type === 'assign_hod') {
         const { id, departmentID } = modalCtx.data;
         const targetID = id || departmentID;
-        setDepartments(prev => prev.map(d => (d.id === targetID || d.departmentID === targetID) ? { ...d, headOfDepartment: formData.headOfDepartment } : d));
-        notify(`Leadership assigned to ${formData.headOfDepartment}`);
-        setIsModalOpen(false);
+        const selectedFaculty = faculty.find(f => f.facultyName === formData.headOfDepartment || f.id === formData.headOfDepartment);
+        const hodUUID = selectedFaculty?.dbID || null;
+        
+        const executeAssign = async () => {
+          if (isDatabaseConnected()) {
+            try {
+              const { error } = await supabase
+                .from('departments')
+                .update({ head_of_department_id: hodUUID })
+                .eq('code', targetID);
+              if (error) throw error;
+              notify("HOD leadership synced securely to database.");
+            } catch (e) {
+              console.error("Failed to update HOD in DB:", e);
+              notify("HOD updated locally, DB update failed.", "warning");
+            }
+          }
+          
+          setDepartments(prev => prev.map(d => (d.id === targetID || d.departmentID === targetID) ? { ...d, headOfDepartment: selectedFaculty ? selectedFaculty.facultyName : formData.headOfDepartment } : d));
+          notify(`Leadership assigned to ${selectedFaculty ? selectedFaculty.facultyName : formData.headOfDepartment}`);
+          setIsModalOpen(false);
+        };
+        
+        executeAssign();
         return;
     }
 
@@ -359,7 +382,363 @@ function App() {
     }
 
     const { type, data } = modalCtx;
-    const setters = { student: setStudents, faculty: setFaculty, finance: setFinance, courses: setCourses, department: setDepartments, exam: setExams, upload_exam_pdf: setExams };
+
+    if (type === 'student') {
+      const name = formData.name?.trim();
+      const id = formData.id?.trim().toUpperCase();
+      const regNumber = formData.regNumber?.trim().toUpperCase();
+      const batch = formData.batch?.trim();
+      const email = formData.email?.trim();
+      
+      if (!name || !id || !regNumber || !batch || !email) {
+        notify("Please fill in all required fields (Name, ID, Registration Number, Batch, Email).", "error");
+        return;
+      }
+
+      // STRICT validation for Batch / Intake
+      const batchRegex = /^(Fall|Spring)\s+\d{4}$/i;
+      if (!batchRegex.test(batch)) {
+        notify("Batch must strictly match active term codes format (e.g., 'Fall 2024', 'Spring 2025', 'Spring 2026').", "error");
+        return;
+      }
+
+      // COMSATS registration validation on student manually added
+      const comsatsRegex = /^(FA|SP)\d{2}-[A-Z]{3,4}-\d{3}$/i;
+      if (!comsatsRegex.test(regNumber)) {
+        notify("Registration number must follow standard COMSATS format: [IntakeSession][IntakeYear]-[DegreeCode]-[RollNo] (e.g. FA20-BCS-001)", "error");
+        return;
+      }
+
+      const executeStudentSave = async () => {
+        let profileUUID = data?.dbID || null;
+        if (isDatabaseConnected()) {
+          try {
+            // Find department by student program or code
+            const programCode = regNumber.split('-')[1]; // BCS, BSE, etc.
+            const matchingDept = departments.find(d => d.departmentID === programCode || programCode.includes(d.departmentID));
+            const deptUUID = matchingDept?.uuid || departments[0]?.uuid || null;
+
+            if (data) {
+              // Editing student profile
+              const { error: profileErr } = await supabase
+                .from('profiles')
+                .update({ full_name: name, email: email, phone_number: formData.phone })
+                .eq('id', data.dbID);
+              if (profileErr) throw profileErr;
+
+              const { error: studErr } = await supabase
+                .from('students')
+                .update({ university_id: regNumber, program: formData.program || 'BSCS', batch: batch })
+                .eq('profile_id', data.dbID);
+              if (studErr) throw studErr;
+
+              notify("Student registry successfully updated in Database.");
+            } else {
+              // Onboarding new student
+              const tempPassword = formData.password || '123';
+              const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                email: email,
+                password: tempPassword,
+                options: {
+                  data: {
+                    full_name: name,
+                    role: 'STUDENT'
+                  }
+                }
+              });
+
+              if (signUpError) {
+                throw signUpError;
+              } else if (signUpData?.user) {
+                profileUUID = signUpData.user.id;
+                // Upsert profiles
+                const { error: profileErr } = await supabase
+                  .from('profiles')
+                  .upsert({ id: profileUUID, email: email, role: 'STUDENT', full_name: name, phone_number: formData.phone });
+                if (profileErr) throw profileErr;
+
+                // Insert student details
+                const { error: studErr } = await supabase
+                  .from('students')
+                  .insert({ profile_id: profileUUID, university_id: regNumber, department_uuid: deptUUID, program: formData.program || 'BSCS', batch: batch });
+                if (studErr) throw studErr;
+
+                // Also initialize standard fee
+                const { error: finErr } = await supabase
+                  .from('financials')
+                  .insert({ student_id: profileUUID, amount_due: 120000, amount_paid: 0, fee_type: 'Tuition' });
+                if (finErr) throw finErr;
+
+                notify("New Student onboarded and registered in database.");
+              }
+            }
+          } catch (e) {
+            console.error("DB student sync failed:", e);
+            notify("Database save failed. Student recorded locally.", "error");
+          }
+        }
+
+        // Update local state
+        setStudents(prev => {
+          if (data) {
+            return prev.map(s => s.id === data.id ? { ...s, ...formData, id: regNumber, regNumber, dbID: profileUUID } : s);
+          } else {
+            return [...prev, { ...formData, id: regNumber, regNumber, dbID: profileUUID || `mock-${Date.now()}` }];
+          }
+        });
+        
+        // Update financials local state
+        if (!data) {
+          setFinance(prev => [...prev, {
+            recordID: `fin-${Date.now()}`,
+            studentID: regNumber,
+            amountPaid: 0,
+            dueAmount: 120000,
+            totalFee: 120000,
+            semester: batch
+          }]);
+        }
+
+        setIsModalOpen(false);
+      };
+
+      executeStudentSave();
+      return;
+    }
+
+    if (type === 'faculty') {
+      const name = formData.facultyName?.trim();
+      const id = formData.id?.trim().toUpperCase();
+      const designation = formData.designation;
+      const email = formData.email?.trim();
+      
+      if (!name || !id || !designation || !email) {
+        notify("Please fill in all required fields (Name, Employee ID, Designation, Email).", "error");
+        return;
+      }
+
+      // STRICT validation for Employee ID (VHR-F-XXX) or match CUI employee ID criteria (allow FIN1 / ADMIN bypass)
+      const empIdRegex = /^VHR-F-\d{3}$/i;
+      const bypassList = ['FIN1', 'ADMIN', 'ADM'];
+      if (!empIdRegex.test(id) && !bypassList.includes(id)) {
+        notify("Employee ID must follow official CUI Vehari format: VHR-F-XXX (where XXX is a 3-digit sequence, e.g., VHR-F-001).", "error");
+        return;
+      }
+
+      const executeFacultySave = async () => {
+        let profileUUID = data?.dbID || null;
+        if (isDatabaseConnected()) {
+          try {
+            if (data) {
+              // Editing faculty
+              const { error: profileErr } = await supabase
+                .from('profiles')
+                .update({ full_name: name, email: email, phone_number: formData.phone })
+                .eq('id', data.dbID);
+              if (profileErr) throw profileErr;
+
+              const { error: facErr } = await supabase
+                .from('faculty')
+                .update({ employee_id: id, designation: designation })
+                .eq('profile_id', data.dbID);
+              if (facErr) throw facErr;
+
+              notify("Faculty registry successfully updated in Database.");
+            } else {
+              // Onboarding new faculty
+              const tempPassword = formData.password || '123';
+              const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                email: email,
+                password: tempPassword,
+                options: {
+                  data: {
+                    full_name: name,
+                    role: 'FACULTY'
+                  }
+                }
+              });
+
+              if (signUpError) {
+                throw signUpError;
+              } else if (signUpData?.user) {
+                profileUUID = signUpData.user.id;
+                const { error: profileErr } = await supabase
+                  .from('profiles')
+                  .upsert({ id: profileUUID, email: email, role: 'FACULTY', full_name: name, phone_number: formData.phone });
+                if (profileErr) throw profileErr;
+
+                const { error: facErr } = await supabase
+                  .from('faculty')
+                  .insert({ profile_id: profileUUID, employee_id: id, designation: designation });
+                if (facErr) throw facErr;
+
+                notify("New Faculty onboarded and registered in database.");
+              }
+            }
+          } catch (e) {
+            console.error("DB faculty sync failed:", e);
+            notify("Database save failed. Faculty recorded locally.", "error");
+          }
+        }
+
+        // Update local state
+        setFaculty(prev => {
+          if (data) {
+            return prev.map(f => f.id === data.id ? { ...f, ...formData, id, dbID: profileUUID } : f);
+          } else {
+            return [...prev, { ...formData, id, dbID: profileUUID || `mock-${Date.now()}`, role: id.includes('FIN') ? 'Finance' : 'Faculty' }];
+          }
+        });
+        setIsModalOpen(false);
+      };
+
+      executeFacultySave();
+      return;
+    }
+
+    if (type === 'department') {
+      const code = formData.departmentID?.trim().toUpperCase();
+      const name = formData.departmentName?.trim();
+      const hodName = formData.headOfDepartment;
+      
+      if (!code || !name) {
+        notify("Please fill in both Department Name and Code.", "error");
+        return;
+      }
+      
+      // Find faculty profile for HOD
+      const selectedFaculty = faculty.find(f => f.facultyName === hodName || f.id === hodName);
+      const hodUUID = selectedFaculty?.dbID || null;
+      const cleanHodName = selectedFaculty ? selectedFaculty.facultyName : (hodName || 'TBD');
+      
+      const executeDeptSave = async () => {
+        const payload = {
+          code: code,
+          name: name,
+          head_of_department_id: hodUUID
+        };
+        
+        if (isDatabaseConnected()) {
+          try {
+            if (data) {
+              const { error } = await supabase
+                .from('departments')
+                .update({ name: payload.name, head_of_department_id: payload.head_of_department_id })
+                .eq('code', data.departmentID);
+              if (error) throw error;
+              notify("Department successfully updated in Database.");
+            } else {
+              const { error } = await supabase
+                .from('departments')
+                .insert([payload]);
+              if (error) throw error;
+              notify("New Department successfully registered in Database.");
+            }
+          } catch (e) {
+            console.error("DB department save failed:", e);
+            notify("Database sync failed. Recorded locally.", "error");
+          }
+        }
+        
+        setDepartments(prev => {
+          if (data) {
+            return prev.map(d => d.departmentID === data.departmentID ? { ...d, departmentID: code, departmentName: name, headOfDepartment: cleanHodName } : d);
+          } else {
+            return [...prev, { departmentID: code, departmentName: name, headOfDepartment: cleanHodName }];
+          }
+        });
+        setIsModalOpen(false);
+      };
+      
+      executeDeptSave();
+      return;
+    }
+
+    if (type === 'course') {
+      const code = formData.courseID?.trim().toUpperCase();
+      const title = formData.courseName?.trim();
+      const credits = parseInt(formData.credits) || 3;
+      const offeredBatchesStr = (formData.offeredToBatches || []).join(',');
+      const prerequisitesStr = (formData.prerequisites || []).join(',');
+
+      if (!code || !title) {
+        notify("Please fill in both Course Code and Course Title.", "error");
+        return;
+      }
+
+      const executeCourseSave = async () => {
+        if (isDatabaseConnected()) {
+          try {
+            const { data: deptData } = await supabase
+              .from('departments')
+              .select('uuid')
+              .eq('code', 'CS')
+              .maybeSingle();
+            const deptUuid = deptData?.uuid || null;
+
+            const payload = {
+              course_code: code,
+              title: title,
+              credit_hours: credits,
+              offered_batches: offeredBatchesStr,
+              prerequisites: prerequisitesStr,
+              department_uuid: deptUuid
+            };
+
+            if (data) {
+              const { error } = await supabase
+                .from('courses')
+                .update({ 
+                  title: payload.title, 
+                  credit_hours: payload.credit_hours,
+                  offered_batches: payload.offered_batches,
+                  prerequisites: payload.prerequisites 
+                })
+                .eq('course_code', data.courseID);
+              if (error) throw error;
+              notify("Course successfully updated in Database.");
+            } else {
+              const { error } = await supabase
+                .from('courses')
+                .insert([payload]);
+              if (error) throw error;
+              notify("New Course successfully registered in Database.");
+            }
+          } catch (e) {
+            console.error("DB course save failed:", e);
+            notify("Database save failed. Course recorded locally.", "error");
+          }
+        }
+
+        setCourses(prev => {
+          if (data) {
+            return prev.map(c => c.courseID === data.courseID ? { 
+              ...c, 
+              courseID: code, 
+              courseName: title, 
+              credits, 
+              offeredToBatches: formData.offeredToBatches || [],
+              prerequisites: formData.prerequisites || ['None']
+            } : c);
+          } else {
+            return [...prev, { 
+              courseID: code, 
+              courseName: title, 
+              credits, 
+              assignedFacultyID: 'None', 
+              offeredToBatches: formData.offeredToBatches || [],
+              prerequisites: formData.prerequisites || ['None']
+            }];
+          }
+        });
+        setIsModalOpen(false);
+      };
+
+      executeCourseSave();
+      return;
+    }
+
+    const setters = { finance: setFinance, courses: setCourses, exam: setExams, upload_exam_pdf: setExams };
     const setter = setters[type];
 
     if (setter) {
@@ -371,7 +750,7 @@ function App() {
         } else {
             const newRecord = { ...formData };
             if (!newRecord.id && !newRecord.recordID && !newRecord.courseID && !newRecord.departmentID) {
-                newRecord.id = Date.now(); // Fallback ID for stability
+                newRecord.id = Date.now();
             }
             setter(prev => [...prev, newRecord]);
         }
@@ -381,8 +760,41 @@ function App() {
 
   };
 
-  const executeDelete = () => {
+  const executeDelete = async () => {
     const { setter, id, typeName, idKey } = deleteConfirm;
+    
+    if (isDatabaseConnected()) {
+      try {
+        if (typeName === 'Department') {
+          const { error } = await supabase
+            .from('departments')
+            .delete()
+            .eq('code', id);
+          if (error) throw error;
+        } else if (typeName === 'Faculty') {
+          const record = faculty.find(f => String(f.id) === String(id));
+          if (record && record.dbID) {
+            const { error } = await supabase
+              .from('profiles')
+              .delete()
+              .eq('id', record.dbID);
+            if (error) throw error;
+          }
+        } else if (typeName === 'Student') {
+          const record = students.find(s => String(s.id) === String(id) || String(s.regNumber) === String(id));
+          if (record && record.dbID) {
+            const { error } = await supabase
+              .from('profiles')
+              .delete()
+              .eq('id', record.dbID);
+            if (error) throw error;
+          }
+        }
+      } catch (e) {
+        console.error(`DB deletion failed for ${typeName}:`, e);
+      }
+    }
+    
     setter(prev => prev.filter(item => String(item[idKey]) !== String(id)));
     notify(`${typeName} record deleted.`);
     setDeleteConfirm({ open: false });
@@ -419,20 +831,20 @@ function App() {
     if (!found) {
         if (role === ROLES.STUDENT) {
           found = students.find(s => 
-            (s.id?.toUpperCase() === inputID || s.dbID === inputID) && 
+            (s.regNumber?.toUpperCase() === inputID || s.id?.toUpperCase() === inputID || s.dbID === inputID) && 
             String(s.password) === inputPass
           );
           if (found) found = { ...found, role: ROLES.STUDENT };
         } else if (role === ROLES.FACULTY) {
           found = faculty.find(f => 
-            (f.id?.toUpperCase() === inputID || f.dbID === inputID) && 
+            (f.email?.trim().toUpperCase() === inputID || f.id?.toUpperCase() === inputID || f.dbID === inputID) && 
             String(f.password) === inputPass && 
             f.role !== 'Finance' && !f.id?.includes('FIN')
           );
           if (found) found = { ...found, role: ROLES.FACULTY };
         } else if (role === ROLES.FINANCE) {
           found = faculty.find(f => 
-            (f.id?.toUpperCase() === inputID || f.dbID === inputID) && 
+            (f.email?.trim().toUpperCase() === inputID || f.id?.toUpperCase() === inputID || f.dbID === inputID) && 
             String(f.password) === inputPass && 
             (f.role === 'Finance' || f.id?.includes('FIN'))
           );
@@ -467,6 +879,62 @@ function App() {
     }
   };
 
+  const handleProfileUpdate = async (updatedUser) => {
+    setUser(updatedUser);
+    saveSession(updatedUser);
+    
+    try {
+      if (updatedUser.role === ROLES.FACULTY || updatedUser.role === ROLES.FINANCE) {
+        setFaculty(prev => prev.map(f => 
+          f.id === updatedUser.id ? { ...f, email: updatedUser.email, phone: updatedUser.phone } : f
+        ));
+
+        if (isDatabaseConnected() && updatedUser.dbID) {
+          const { error: profileErr } = await supabase
+            .from('profiles')
+            .update({ 
+              email: updatedUser.email, 
+              phone_number: updatedUser.phone 
+            })
+            .eq('id', updatedUser.dbID);
+          
+          if (profileErr) throw profileErr;
+        }
+      } else if (updatedUser.role === ROLES.STUDENT) {
+        setStudents(prev => prev.map(s => 
+          s.id === updatedUser.id ? { ...s, phone: updatedUser.phone } : s
+        ));
+
+        if (isDatabaseConnected() && updatedUser.dbID) {
+          const { error: profileErr } = await supabase
+            .from('profiles')
+            .update({ 
+              phone_number: updatedUser.phone 
+            })
+            .eq('id', updatedUser.dbID);
+          
+          if (profileErr) throw profileErr;
+        }
+      } else if (updatedUser.role === ROLES.ADMIN) {
+        if (isDatabaseConnected() && updatedUser.dbID) {
+          const { error: profileErr } = await supabase
+            .from('profiles')
+            .update({ 
+              email: updatedUser.email, 
+              phone_number: updatedUser.phone 
+            })
+            .eq('id', updatedUser.dbID);
+          
+          if (profileErr) throw profileErr;
+        }
+      }
+      
+      notify('Profile Settings Updated Successfully!', 'success');
+    } catch (err) {
+      console.error("Profile update failed:", err);
+      notify("Profile update synced locally, but failed to persist to database.", "warning");
+    }
+  };
 
   const handleLogout = () => {
       setUser(null);
@@ -532,7 +1000,7 @@ function App() {
   );
   if (appView === 'login') return (
     <div className="login-page-root" style={{display:'flex', flexDirection:'column', minHeight:'100vh', height: '100vh', overflowY: 'auto', overflowX: 'hidden'}}>
-      <Login onLogin={handleLogin} loginError={loginError} setLoginError={setLoginError} setStep={(s) => { setLoginStep(s); setRegSubStep(1); setAuthData({id:'', name:'', password:'', program: '', email: ''}); setLoginError(null); }} loginStep={loginStep} authData={authData} setAuthData={setAuthData} handleRegister={handleRegister} regSubStep={regSubStep} setRegSubStep={setRegSubStep} theme={theme} toggleTheme={toggleTheme} onInitiateRecovery={handleInitiateRecovery} />
+      <Login onLogin={handleLogin} loginError={loginError} setLoginError={setLoginError} setStep={(s) => { setLoginStep(s); setRegSubStep(1); setAuthData({id:'', name:'', password:'', program: '', email: ''}); setLoginError(null); }} loginStep={loginStep} authData={authData} setAuthData={setAuthData} handleRegister={handleRegister} regSubStep={regSubStep} setRegSubStep={setRegSubStep} theme={theme} toggleTheme={toggleTheme} onInitiateRecovery={handleInitiateRecovery} notify={notify} />
       <Footer />
     </div>
   );
@@ -603,6 +1071,8 @@ function App() {
           stats={roleStats}
           user={user}
           notices={notices}
+          feeStructures={feeStructures}
+          students={students}
           onAction={(type, data) => {
             if (type === 'VIEW_STUDENTS')    setActiveTab('students');
             if (type === 'VIEW_FACULTY')     setActiveTab('faculty');
@@ -722,37 +1192,64 @@ function App() {
           </div>
         );
       
-      case 'profile': return (
-        <div className="view-container fade-in">
-          <div className="view-header-premium">
-            <div>
-              <h1>Profile Settings</h1>
-              <p>Manage your personal identification and contact preferences.</p>
+      case 'profile': {
+        const isStudent = user.role === ROLES.STUDENT;
+        return (
+          <div className="view-container fade-in">
+            <div className="view-header-premium">
+              <div>
+                <h1>Profile Settings</h1>
+                <p>Manage your personal identification, login credentials, and contact preferences.</p>
+              </div>
+            </div>
+            <div className="glass-card feature-card mt-24" style={{padding:'32px', maxWidth:'600px', margin:'24px auto'}}>
+              <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'20px'}}>
+                <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                   <label style={{fontSize:'12px', opacity:0.6}}>Official Name</label>
+                   <input className="input-premium" value={user.name || user.facultyName || ''} readOnly style={{opacity:0.6}} />
+                </div>
+                
+                {isStudent ? (
+                  <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                     <label style={{fontSize:'12px', opacity:0.6}}>Registration Number (Fixed)</label>
+                     <input className="input-premium" value={user.regNumber || user.id || ''} readOnly style={{opacity:0.6}} />
+                  </div>
+                ) : (
+                  <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                     <label style={{fontSize:'12px', opacity:0.6}}>Institutional ID</label>
+                     <input className="input-premium" value={user.id || ''} readOnly style={{opacity:0.6}} />
+                  </div>
+                )}
+
+                <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                   <label style={{fontSize:'12px', opacity:0.6}}>Personal Contact</label>
+                   <input className="input-premium" placeholder="+92 3XX XXXXXXX" value={user.phone || ''} onChange={e => setUser({...user, phone: e.target.value})} />
+                </div>
+
+                {isStudent ? (
+                  <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                     <label style={{fontSize:'12px', opacity:0.6}}>Personal Email</label>
+                     <input className="input-premium" placeholder="e.g. student@gmail.com" value={user.personalEmail || ''} onChange={e => setUser({...user, personalEmail: e.target.value})} />
+                  </div>
+                ) : (
+                  <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                     <label style={{fontSize:'12px', opacity:0.6}}>Registered Login Email (Credentials)</label>
+                     <input className="input-premium" placeholder="e.g. faculty@cui.edu" value={user.email || ''} onChange={e => setUser({...user, email: e.target.value})} />
+                     <span style={{fontSize:'11px', color:'var(--color-accent)', opacity:0.8}}>Updating this email will change your official gateway login credentials.</span>
+                  </div>
+                )}
+
+                <button 
+                  className="btn-primary-premium mt-12" 
+                  onClick={() => handleProfileUpdate(user)}
+                >
+                  Update Identification
+                </button>
+              </div>
             </div>
           </div>
-          <div className="glass-card feature-card mt-24" style={{padding:'32px', maxWidth:'600px', margin:'24px auto'}}>
-            <div className="form-grid-premium" style={{display:'flex', flexDirection:'column', gap:'20px'}}>
-              <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-                 <label style={{fontSize:'12px', opacity:0.6}}>Official Name</label>
-                 <input className="input-premium" value={user.name || user.facultyName} readOnly style={{opacity:0.6}} />
-              </div>
-              <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-                 <label style={{fontSize:'12px', opacity:0.6}}>Institutional ID</label>
-                 <input className="input-premium" value={user.id} readOnly style={{opacity:0.6}} />
-              </div>
-              <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-                 <label style={{fontSize:'12px', opacity:0.6}}>Personal Contact</label>
-                 <input className="input-premium" placeholder="+92 3XX XXXXXXX" value={user.phone || ''} onChange={e => setUser({...user, phone: e.target.value})} />
-              </div>
-              <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
-                 <label style={{fontSize:'12px', opacity:0.6}}>Personal Email</label>
-                 <input className="input-premium" placeholder="e.g. user@gmail.com" value={user.personalEmail || ''} onChange={e => setUser({...user, personalEmail: e.target.value})} />
-              </div>
-              <button className="btn-primary-premium mt-12" onClick={() => { notify('Profile Security Update: Success'); saveSession(user); }}>Update Identification</button>
-            </div>
-          </div>
-        </div>
-      );
+        );
+      }
       
       
       case 'students': return <StudentManagement students={students} finance={finance} feePayments={feePayments} openForm={openForm} handleDelete={(s,i,t) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:'id'})} setStudents={setStudents} />;
@@ -1076,7 +1573,7 @@ function App() {
         />;
 
 
-      case 'departments': return <DepartmentManagement departments={departments} faculty={faculty} openForm={openForm} />;
+      case 'departments': return <DepartmentManagement departments={departments} setDepartments={setDepartments} faculty={faculty} openForm={openForm} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
       case 'catalog': return <CourseManagement courses={courses} setCourses={setCourses} faculty={faculty} enrolments={enrolments} user={user} openForm={openForm} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
       case 'enrolments': return <EnrollmentManagement enrolments={enrolments} setEnrolments={setEnrolments} students={students} courses={courses} notify={notify} />;
       case 'password-resets': return (
@@ -1164,6 +1661,19 @@ function App() {
               <label>Department Code</label>
               <input className="input-premium" placeholder="e.g. HUM" value={formData.departmentID || ''} onChange={e => setFormData({...formData, departmentID: e.target.value})} />
             </div>
+            <div style={{gridColumn: 'span 2'}}>
+              <label>Head of Department (HOD)</label>
+              <input 
+                list="department-faculty-list" 
+                className="input-premium" 
+                placeholder="Start typing teacher name to assign HOD..." 
+                value={formData.headOfDepartment || ''} 
+                onChange={e => setFormData({...formData, headOfDepartment: e.target.value})} 
+              />
+              <datalist id="department-faculty-list">
+                {faculty.filter(f => f.role !== 'Finance').map(f => (<option key={f.id} value={f.facultyName || f.name}>{f.designation}</option>))}
+              </datalist>
+            </div>
           </div>
         );
       case 'assign_hod':
@@ -1221,8 +1731,15 @@ function App() {
               <input className="input-premium" placeholder="VHR-F-XXX" value={formData.id || ''} onChange={e => setFormData({...formData, id: e.target.value})} />
             </div>
             <div>
-              <label>Designation</label>
-              <input className="input-premium" placeholder="Assistant Professor" value={formData.designation || ''} onChange={e => setFormData({...formData, designation: e.target.value})} />
+              <label>Designation (CUI Rank)</label>
+              <select className="input-premium" value={formData.designation || ''} onChange={e => setFormData({...formData, designation: e.target.value})}>
+                <option value="">Select Rank</option>
+                <option value="Professor">Professor</option>
+                <option value="Associate Professor">Associate Professor</option>
+                <option value="Assistant Professor">Assistant Professor</option>
+                <option value="Lecturer">Lecturer</option>
+                <option value="Research Assistant">Research Assistant</option>
+              </select>
             </div>
             <div>
               <label>Institutional Email</label>
@@ -1240,7 +1757,7 @@ function App() {
         );
       case 'course':
         return (
-          <div className="form-grid-premium" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px'}}>
+          <div className="form-grid-premium" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', textAlign:'left'}}>
             <div>
               <label>Course Name</label>
               <input className="input-premium" placeholder="e.g. Data Structures" value={formData.courseName || ''} onChange={e => setFormData({...formData, courseName: e.target.value})} />
@@ -1249,13 +1766,73 @@ function App() {
               <label>Course ID / Code</label>
               <input className="input-premium" placeholder="e.g. CSC211" value={formData.courseID || ''} onChange={e => setFormData({...formData, courseID: e.target.value})} />
             </div>
-            <div>
+            <div style={{gridColumn: 'span 2'}}>
               <label>Credit Hours</label>
               <input className="input-premium" type="number" placeholder="3" value={formData.credits || ''} onChange={e => setFormData({...formData, credits: e.target.value})} />
             </div>
-            <div>
-              <label>Prerequisites</label>
-              <input className="input-premium" placeholder="e.g. CSC101, MTH101" value={(formData.prerequisites || []).join(', ')} onChange={e => setFormData({...formData, prerequisites: e.target.value.split(',').map(s => s.trim())})} />
+            <div style={{gridColumn: 'span 2'}}>
+              <label style={{fontWeight:600, display:'block', marginBottom:'8px'}}>Course Prerequisites</label>
+              <div style={{maxHeight:'110px', overflowY:'auto', background:'var(--color-bg-dim)', padding:'10px', borderRadius:'8px', border:'1px solid var(--color-border)', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px'}}>
+                {courses.filter(c => c.courseID !== formData.courseID).map(c => {
+                  const isChecked = (formData.prerequisites || []).includes(c.courseID);
+                  return (
+                    <label key={c.courseID} style={{display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', cursor:'pointer', margin:0}}>
+                      <input 
+                        type="checkbox" 
+                        checked={isChecked}
+                        style={{width:'auto', height:'auto', margin:0, padding:0}}
+                        onChange={(e) => {
+                          let list = formData.prerequisites || [];
+                          if (e.target.checked) {
+                            list = [...list.filter(x => x !== 'None' && x !== 'none'), c.courseID];
+                          } else {
+                            list = list.filter(x => x !== c.courseID);
+                          }
+                          if (list.length === 0) list = ['None'];
+                          setFormData({...formData, prerequisites: list});
+                        }}
+                      />
+                      <span>{c.courseName} ({c.courseID})</span>
+                    </label>
+                  );
+                })}
+                {courses.filter(c => c.courseID !== formData.courseID).length === 0 && (
+                  <span style={{opacity:0.5, fontSize:'12px'}}>No other courses in catalog.</span>
+                )}
+              </div>
+            </div>
+            <div style={{gridColumn: 'span 2', marginTop: '10px'}}>
+              <label style={{fontWeight:600, display:'block', marginBottom:'8px'}}>Offered to Batches</label>
+              <div style={{display:'flex', gap:'12px', flexWrap:'wrap'}}>
+                {['Fall 2024', 'Spring 2025', 'Spring 2026'].map(batch => {
+                  const isOffered = (formData.offeredToBatches || []).includes(batch);
+                  return (
+                    <button
+                      key={batch}
+                      type="button"
+                      className={isOffered ? 'btn-primary' : 'btn-outline'}
+                      style={{
+                        padding: '6px 16px', fontSize: '12px', borderRadius: '20px', margin: 0,
+                        background: isOffered ? 'var(--color-ink)' : 'transparent',
+                        color: isOffered ? 'white' : 'var(--color-ink)',
+                        border: '1px solid var(--color-border)',
+                        cursor: 'pointer', transition: 'all 0.2s ease'
+                      }}
+                      onClick={() => {
+                        let list = formData.offeredToBatches || [];
+                        if (list.includes(batch)) {
+                          list = list.filter(b => b !== batch);
+                        } else {
+                          list = [...list, batch];
+                        }
+                        setFormData({...formData, offeredToBatches: list});
+                      }}
+                    >
+                      {batch}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         );

@@ -1,50 +1,79 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const ROLES = { ADMIN: 'Admin', STUDENT: 'Student', FACULTY: 'Faculty', FINANCE: 'Finance' };
 
-const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authData, setAuthData, regSubStep, setRegSubStep, handleRegister, theme, toggleTheme, onInitiateRecovery }) => {
+const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authData, setAuthData, regSubStep, setRegSubStep, handleRegister, theme, toggleTheme, onInitiateRecovery, notify }) => {
+  const [recoveryRequested, setRecoveryRequested] = useState(false);
+  const [confirmChecked, setConfirmChecked] = useState(false);
+
+  useEffect(() => {
+    if (loginStep !== 'forgot') {
+      setRecoveryRequested(false);
+      setConfirmChecked(false);
+    }
+  }, [loginStep]);
+
   const handleRegNumberChange = (val) => {
     const formatted = val.toUpperCase();
-    const match = formatted.match(/^(FA|SP)(\d{2})-([A-Z]{3,4})-\d{3}$/);
+    
     let parsedProgram = '';
     let parsedBatch = '';
-    if (match) {
-      const term = match[1] === 'FA' ? 'Fall' : 'Spring';
-      const year = '20' + match[2];
+    
+    // Parse intake session and year (e.g. FA20 -> Fall 2020)
+    const batchMatch = formatted.match(/^(FA|SP)(\d{2})/i);
+    if (batchMatch) {
+      const term = batchMatch[1].toUpperCase() === 'FA' ? 'Fall' : 'Spring';
+      const year = '20' + batchMatch[2];
       parsedBatch = `${term} ${year}`;
-      
-      const progCode = match[3];
+    }
+    
+    // Parse HEC degree program code (e.g. BCS -> BS Computer Science)
+    const progMatch = formatted.match(/^(?:FA|SP)\d{2}-([A-Z]{3,4})/i);
+    if (progMatch) {
+      const progCode = progMatch[1].toUpperCase();
       if (progCode === 'BCS') parsedProgram = 'BS Computer Science';
       else if (progCode === 'BSE') parsedProgram = 'BS Software Engineering';
       else if (progCode === 'BBA') parsedProgram = 'BS Business Administration';
+      else if (progCode === 'BAF') parsedProgram = 'BS Accounting & Finance';
+      else if (progCode === 'BMT') parsedProgram = 'BS Mathematics';
+      else if (progCode === 'BVS') parsedProgram = 'BS Environmental Sciences';
+      else if (progCode === 'BEN') parsedProgram = 'BS English';
+      else if (progCode === 'BEC') parsedProgram = 'BS Economics';
       else parsedProgram = `BS ${progCode}`;
     }
     
-    setAuthData({
-      ...authData,
+    setAuthData(prev => ({
+      ...prev,
       regNumber: formatted,
-      program: parsedProgram || authData.program,
-      batch: parsedBatch || authData.batch
-    });
+      program: parsedProgram || prev.program,
+      batch: parsedBatch || prev.batch
+    }));
   };
 
   const validateStep1 = () => {
     if (!authData.name) {
-      alert("Please enter your Full Name.");
+      if (notify) notify("Please enter your Full Name.", "error");
+      else alert("Please enter your Full Name.");
       return;
     }
     if (!authData.email) {
-      alert("Please enter your Official Email Address.");
+      if (notify) notify("Please enter your Official Email Address.", "error");
+      else alert("Please enter your Official Email Address.");
       return;
     }
     if (!authData.regNumber) {
-      alert("Please enter your Registration Number.");
+      if (notify) notify("Please enter your Registration Number.", "error");
+      else alert("Please enter your Registration Number.");
       return;
     }
     
     const regPattern = /^(FA|SP)\d{2}-[A-Z]{3,4}-\d{3}$/i;
     if (!regPattern.test(authData.regNumber)) {
-      alert("Invalid Registration Number format. Must match COMSATS format: e.g. FA20-BCS-001 (SessionYear-Program-RollNo)");
+      if (notify) {
+        notify("Invalid Registration Number format. Hint: [IntakeSession][IntakeYear]-[DegreeCode]-[RollNo] (e.g. FA20-BCS-001)", "error");
+      } else {
+        alert("Invalid Registration Number. Must match format: [IntakeSession][IntakeYear]-[DegreeCode]-[RollNo] (e.g. FA20-BCS-001)");
+      }
       return;
     }
     
@@ -151,7 +180,7 @@ const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authDat
                 </div>
               </div>
               <p className="mt-24" style={{ textAlign: 'center', fontSize: '14px' }}>
-                Are you a student? <span style={{ color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 700 }} onClick={() => setStep('register')}>Sign Up Now</span>
+                Are you a student? <span style={{ color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 700 }} onClick={() => setStep('register')}>Student Sign Up</span>
               </p>
             </div>
           )}
@@ -181,82 +210,130 @@ const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authDat
                 </div>
               )}
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Identification</label>
-                  <input 
-                    autoFocus 
-                    placeholder="Institutional ID / Registration No" 
-                    value={authData.id} 
-                    onChange={e => {
-                      setAuthData({...authData, id: e.target.value});
-                      if (setLoginError) setLoginError(null);
-                    }} 
-                    onKeyDown={e => e.key === 'Enter' && loginStep !== 'forgot' && onLogin(ROLES[loginStep.toUpperCase()])}
-                  />
+              {loginStep === 'forgot' && recoveryRequested ? (
+                <div className="fade-in" style={{ textAlign: 'center', padding: '12px 0' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔑</div>
+                  <h4 style={{ fontSize: '18px', color: 'var(--color-ink)', marginBottom: '12px', fontWeight: 700 }}>Request Submitted</h4>
+                  <p style={{ fontSize: '14px', lineHeight: '1.6', opacity: 0.8, marginBottom: '24px' }}>
+                    A secure password reset request has been logged. 
+                    <strong style={{ display: 'block', marginTop: '12px', color: 'var(--color-accent)', fontSize: '15px' }}>
+                      Please visit the Admin Office to get your new password.
+                    </strong>
+                  </p>
+                  <button 
+                    style={isInvertedBtn} 
+                    onClick={() => {
+                      setRecoveryRequested(false);
+                      setConfirmChecked(false);
+                      setStep('choice');
+                    }}
+                  >
+                    Return to Choice
+                  </button>
                 </div>
-                
-                {loginStep !== 'forgot' ? (
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Security Key</label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>
+                      {loginStep === 'forgot' ? 'Registration No. / Email Address' : 'Identification'}
+                    </label>
                     <input 
-                      type="password" 
-                      placeholder="••••••••" 
-                      value={authData.password} 
+                      autoFocus 
+                      placeholder={loginStep === 'forgot' ? "Enter your Reg No (Student) or Email (Staff)" : "Institutional ID / Registration No"} 
+                      value={authData.id} 
                       onChange={e => {
-                        setAuthData({...authData, password: e.target.value});
+                        setAuthData({...authData, id: e.target.value});
                         if (setLoginError) setLoginError(null);
                       }} 
-                      onKeyDown={e => e.key === 'Enter' && onLogin(ROLES[loginStep.toUpperCase()])}
+                      onKeyDown={e => e.key === 'Enter' && loginStep !== 'forgot' && onLogin(ROLES[loginStep.toUpperCase()])}
                     />
-                    <div style={{ textAlign: 'right', marginTop: '8px' }}>
-                      <span style={{ fontSize: '12px', cursor: 'pointer', opacity: 0.6 }} onClick={() => setStep('forgot')}>Forgot Key?</span>
+                  </div>
+                  
+                  {loginStep !== 'forgot' ? (
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Security Key</label>
+                      <input 
+                        type="password" 
+                        placeholder="••••••••" 
+                        value={authData.password} 
+                        onChange={e => {
+                          setAuthData({...authData, password: e.target.value});
+                          if (setLoginError) setLoginError(null);
+                        }} 
+                        onKeyDown={e => e.key === 'Enter' && onLogin(ROLES[loginStep.toUpperCase()])}
+                      />
+                      <div style={{ textAlign: 'right', marginTop: '8px' }}>
+                        <span style={{ fontSize: '12px', cursor: 'pointer', opacity: 0.6 }} onClick={() => setStep('forgot')}>Forgot Key?</span>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Security Token</label>
-                    <input placeholder="Enter last 4 digits of Phone" value={authData.securityToken || ''} onChange={e => setAuthData({...authData, securityToken: e.target.value})} />
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="fade-in">
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginTop: '4px' }}>
+                        <input 
+                          type="checkbox" 
+                          id="confirm-reset" 
+                          checked={confirmChecked} 
+                          onChange={e => setConfirmChecked(e.target.checked)} 
+                          style={{ width: 'auto', marginTop: '4px', cursor: 'pointer' }}
+                        />
+                        <label htmlFor="confirm-reset" style={{ fontSize: '13px', lineHeight: '1.4', cursor: 'pointer', opacity: 0.9 }}>
+                          I confirm that I really want to request to reset my account password.
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
-              <button 
-                style={isInvertedBtn}
-                onClick={() => {
-                  if (loginStep === 'forgot') {
-                    if (!authData.id || !authData.id.trim()) {
-                      alert("Please enter your Registration Number / ID first.");
-                      return;
-                    }
-                    if (onInitiateRecovery) {
-                      onInitiateRecovery(authData.id.trim());
-                    } else {
-                      alert("Recovery protocol initiated. Check your primary email.");
-                      setStep('choice');
-                    }
-                  } else {
-                    onLogin(ROLES[loginStep.toUpperCase()]);
-                  }
-                }}
-              >
-                {loginStep === 'forgot' ? 'Initiate Recovery' : 'Authorize Access'}
-              </button>
-              
-              <button 
-                className="btn-text-only" 
-                style={{ width: '100%', marginTop: '16px', color: 'var(--color-ink)' }} 
-                onClick={() => setStep('choice')}
-              >
-                ← Return to Choice
-              </button>
+                  <button 
+                    style={{
+                      ...isInvertedBtn,
+                      opacity: (loginStep !== 'forgot' || (confirmChecked && authData.id?.trim())) ? 1 : 0.6,
+                      cursor: (loginStep !== 'forgot' || (confirmChecked && authData.id?.trim())) ? 'pointer' : 'not-allowed'
+                    }}
+                    disabled={loginStep === 'forgot' && (!confirmChecked || !authData.id?.trim())}
+                    onClick={async () => {
+                      if (loginStep === 'forgot') {
+                        if (!authData.id || !authData.id.trim()) {
+                          if (notify) notify("Please enter your Registration Number / Email first.", "error");
+                          else alert("Please enter your Registration Number / Email first.");
+                          return;
+                        }
+                        if (!confirmChecked) {
+                          if (notify) notify("Please confirm your reset request.", "warning");
+                          else alert("Please confirm your reset request.");
+                          return;
+                        }
+                        if (onInitiateRecovery) {
+                          const success = await onInitiateRecovery(authData.id.trim());
+                          if (success) {
+                            setRecoveryRequested(true);
+                          }
+                        } else {
+                          setRecoveryRequested(true);
+                        }
+                      } else {
+                        onLogin(ROLES[loginStep.toUpperCase()]);
+                      }
+                    }}
+                  >
+                    {loginStep === 'forgot' ? 'Confirm Reset Request' : 'Authorize Access'}
+                  </button>
+                  
+                  <button 
+                    className="btn-text-only" 
+                    style={{ width: '100%', marginTop: '8px', color: 'var(--color-ink)' }} 
+                    onClick={() => setStep('choice')}
+                  >
+                    ← Return to Choice
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
           {loginStep === 'register' && (
             <div className="fade-in">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ margin: 0 }}>Student Sign Up {regSubStep}/4</h3>
+                <h3 style={{ margin: 0 }}>Student Sign Up (Step {regSubStep}/4)</h3>
                 <span style={{ fontSize: '12px', opacity: 0.5 }}>Step {regSubStep} of 4</span>
               </div>
               

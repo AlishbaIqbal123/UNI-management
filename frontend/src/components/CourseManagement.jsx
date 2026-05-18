@@ -44,9 +44,27 @@ const CourseManagement = ({ courses, setCourses, faculty, enrolments, user, open
             {courses.map(c => (
               <tr key={c.courseID}>
                 <td data-label="Course Information">
-                  <div style={{display:'flex', flexDirection:'column'}}>
+                  <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
                     <span style={{fontWeight:600}}>{c.courseName}</span>
-                    <span className="font-monospace" style={{fontSize:'10px', opacity:0.6}}>{c.courseID}</span>
+                    <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
+                      <span className="font-monospace" style={{fontSize:'11px', opacity:0.7, background:'rgba(255,255,255,0.08)', padding:'2px 6px', borderRadius:'4px'}}>{c.courseID}</span>
+                      {c.prerequisites && c.prerequisites.length > 0 && c.prerequisites[0] !== 'None' && c.prerequisites[0] !== 'none' ? (
+                        <span style={{fontSize:'11px', opacity:0.8}}>
+                          📚 Pre-reqs: <strong style={{fontWeight:700}}>{c.prerequisites.join(', ')}</strong>
+                        </span>
+                      ) : (
+                        <span style={{fontSize:'11px', opacity:0.5}}>No Pre-reqs</span>
+                      )}
+                    </div>
+                    {c.offeredToBatches && c.offeredToBatches.length > 0 && (
+                      <div style={{display:'flex', gap:'4px', flexWrap:'wrap', marginTop:'4px'}}>
+                        {c.offeredToBatches.map(batch => (
+                          <span key={batch} className="badge-premium" style={{fontSize:'10px', padding:'2px 8px', borderRadius:'10px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', opacity:0.9}}>
+                            {batch}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </td>
                 <td data-label="Academic Lecturer">
