@@ -2,7 +2,7 @@ import React from 'react';
 
 const ROLES = { ADMIN: 'Admin', STUDENT: 'Student', FACULTY: 'Faculty', FINANCE: 'Finance' };
 
-const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authData, setAuthData, regSubStep, setRegSubStep, handleRegister, theme, toggleTheme }) => {
+const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authData, setAuthData, regSubStep, setRegSubStep, handleRegister, theme, toggleTheme, onInitiateRecovery }) => {
   const isInvertedBtn = {
     background: 'var(--color-ink)',
     color: 'var(--color-bg)',
@@ -37,7 +37,7 @@ const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authDat
         justifyContent: 'center',
         padding: '64px',
         borderRight: '2px solid var(--color-ink)',
-        background: 'var(--surface-container-high)',
+        background: 'var(--color-card)',
         backgroundImage: 'radial-gradient(var(--color-border) 1px, transparent 1px)',
         backgroundSize: '30px 30px'
       }}>
@@ -67,8 +67,8 @@ const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authDat
           width: '100%',
           maxWidth: '450px',
           padding: '48px',
-          background: 'white',
-          border: '1px solid var(--color-ink)',
+          background: 'var(--color-card)',
+          border: '1px solid var(--color-border)',
           boxShadow: 'var(--shadow)',
           borderRadius: 'var(--radius)'
         }}>
@@ -177,8 +177,16 @@ const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authDat
                 style={isInvertedBtn}
                 onClick={() => {
                   if (loginStep === 'forgot') {
-                    alert("Recovery protocol initiated. Check your primary email.");
-                    setStep('choice');
+                    if (!authData.id || !authData.id.trim()) {
+                      alert("Please enter your Registration Number / ID first.");
+                      return;
+                    }
+                    if (onInitiateRecovery) {
+                      onInitiateRecovery(authData.id.trim());
+                    } else {
+                      alert("Recovery protocol initiated. Check your primary email.");
+                      setStep('choice');
+                    }
                   } else {
                     onLogin(ROLES[loginStep.toUpperCase()]);
                   }
@@ -274,7 +282,7 @@ const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authDat
       <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .login-branding-col { display: none !important; }
-          .login-form-col { flex: 1 !important; background: var(--surface-container-high) !important; padding: 16px !important; }
+          .login-form-col { flex: 1 !important; background: var(--color-bg) !important; padding: 16px !important; }
           .login-card-premium { padding: 32px !important; }
         }
       `}} />

@@ -66,7 +66,14 @@ const StudentMarksView = ({ user, enrolments, assessments, marks, courses }) => 
                       <tr>
                         <td colSpan="4">
                           <div className="empty-state" style={{padding: '32px'}}>
-                            <div className="empty-state-icon">📝</div>
+                            <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--color-ink-faint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                              </svg>
+                            </div>
                             <p>No evaluations recorded for this course.</p>
                           </div>
                         </td>
@@ -92,7 +99,12 @@ const StudentMarksView = ({ user, enrolments, assessments, marks, courses }) => 
         })}
         {myEnrolments.length === 0 && (
            <div className="empty-state card" style={{padding: '60px'}}>
-             <div className="empty-state-icon">🎓</div>
+             <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-ink-faint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                 <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                 <path d="M6 12v5c0 2 2.5 3 6 3s6-1 6-3v-5" />
+               </svg>
+             </div>
              <h2>No Active Registry Found</h2>
              <p>No course enrollments were detected for your academic profile. Please verify your registration status with the Department Hub.</p>
            </div>

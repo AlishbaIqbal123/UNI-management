@@ -3,6 +3,7 @@ import { supabase, isDatabaseConnected } from '../lib/supabase';
 import * as XLSX from 'xlsx';
 
 const ExamManagement = ({ 
+  mode,
   user, 
   students = [], 
   courses = [], 
@@ -28,9 +29,9 @@ const ExamManagement = ({
   const [showAddAsst, setShowAddAsst] = useState(false);
   const [newAsst, setNewAsst] = useState({ type: 'quiz', title: '', total_marks: 0 });
 
-  const isGradingMode = !!setAssessments && (user.role === 'Faculty' || user.role === 'Admin');
+  const isGradingMode = mode !== 'schedule' && !!setAssessments && (user.role === 'Faculty' || user.role === 'Admin');
 
-  // --- Excel Import State ---
+  // --- Excel Import & View State ---
   const [activeTab, setActiveTab]         = useState('pdf');       // 'pdf' or 'excel'
   const [selectedFile, setSelectedFile]   = useState(null);
   const [semesterLabel, setSemesterLabel] = useState('');
@@ -41,9 +42,17 @@ const ExamManagement = ({
   const [uploads, setUploads]             = useState([]);
   const [viewingUpload, setViewingUpload] = useState(null);
   const [viewEntries, setViewEntries]     = useState([]);
-  const [search, setSearch]               = useState('');
+  const [searchQuery, setSearchQuery]     = useState('');
   const [error, setError]                 = useState(null);
   const [successMsg, setSuccessMsg]       = useState(null);
+
+  // New interactive view flow states
+  const [viewDept, setViewDept]           = useState('all');
+  const [viewProgram, setViewProgram]     = useState('all');
+  const [studentFilterBatchOnly, setStudentFilterBatchOnly] = useState(true);
+  const [dragOver, setDragOver]           = useState(false);
+  const fileInputRef                      = React.useRef(null);
+
 
   // Filtering Logic
   const filteredCourses = courses.filter(c => {
@@ -60,9 +69,251 @@ const ExamManagement = ({
   const courseEnrolments = enrolments.filter(e => e.courseID === selCourse && e.status === 'Confirmed');
   const sessionStudents = students.filter(s => courseEnrolments.some(e => e.studentID === s.id || e.studentID === s.dbID));
 
-  // --- Data Fetching ---
+  // --- Data Fetching & Excel Processing ---
+  
+  function parseDateHeader(raw) {
+    if (!raw) return { iso: null, day: null, label: String(raw || '') };
+    const s = String(raw).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    // Extract day name
+    const DAYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    let dayName = null;
+    for (const d of DAYS) {
+      if (s.toLowerCase().includes(d)) { 
+        dayName = d.charAt(0).toUpperCase() + d.slice(1); 
+        break; 
+      }
+    }
+
+    const MONTHS = {
+      january:1, feb:2, february:2, mar:3, march:3, apr:4, april:4, may:5, jun:6, june:6,
+      jul:7, july:7, aug:8, august:8, sep:9, september:9, oct:10, october:10, nov:11, november:11, dec:12, december:12
+    };
+
+    let iso = null;
+    const lower = s.toLowerCase();
+    const cleanStr = lower.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+    const tokens = cleanStr.split(' ');
+
+    let monthVal = null;
+    let dayVal = null;
+    let yearVal = null;
+
+    for (const token of tokens) {
+      if (MONTHS[token] !== undefined) {
+        monthVal = MONTHS[token];
+      } else if (/^\d{4}$/.test(token)) {
+        yearVal = parseInt(token, 10);
+      } else if (/^\d{1,2}$/.test(token)) {
+        const val = parseInt(token, 10);
+        if (val >= 1 && val <= 31) {
+          dayVal = val;
+        }
+      }
+    }
+
+    if (yearVal && monthVal && dayVal) {
+      iso = `${yearVal}-${String(monthVal).padStart(2, '0')}-${String(dayVal).padStart(2, '0')}`;
+    } else {
+      const fallback = new Date(s);
+      if (!isNaN(fallback.getTime())) {
+        iso = fallback.toISOString().split('T')[0];
+      }
+    }
+
+    return { iso, day: dayName, label: s };
+  }
+
+  function parseCellBlock(rawCell) {
+    if (!rawCell || String(rawCell).trim() === '') return [];
+    const text = String(rawCell).trim();
+
+    const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+    const results = [];
+
+    for (const block of blocks) {
+      const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length === 0) continue;
+
+      let course_title = '';
+      let instructor   = '';
+      let strength     = '';
+      let room         = '';
+      let start_time   = '';
+      let end_time     = '';
+
+      const firstLine = lines[0];
+      const looksLikeTime   = /\d{1,2}:\d{2}/.test(firstLine);
+      const looksLikeRoom   = /^(Room|R#|Room\s*#)/i.test(firstLine);
+      const looksLikeStreng = /^(Strength|ST#|strength\s*[:=])/i.test(firstLine);
+
+      let startIndex = 0;
+      if (!looksLikeTime && !looksLikeRoom && !looksLikeStreng) {
+        course_title = firstLine;
+        startIndex = 1;
+      }
+
+      for (let i = startIndex; i < lines.length; i++) {
+        const line = lines[i];
+
+        if (/^inst:/i.test(line)) {
+          instructor = line.replace(/^inst:\s*/i, '').trim();
+          continue;
+        }
+
+        if (/^strength/i.test(line) || /^st#/i.test(line)) {
+          strength = line.replace(/^(strength\s*[:=]?\s*|st#\s*)/i, '').trim();
+          continue;
+        }
+
+        if (/^room/i.test(line) || /^r#/i.test(line)) {
+          room = line.replace(/^(room\s*#?\s*[:=]?\s*|r#\s*)/i, '').trim();
+          continue;
+        }
+
+        if (/^time/i.test(line) || /\d{1,2}:\d{2}/.test(line)) {
+          const timeStr = line.replace(/^time\s*[:=]?\s*/i, '').trim();
+          const separator = timeStr.includes(' to ') ? ' to ' : '-';
+          const timeParts = timeStr.split(separator).map(t => t.trim());
+          start_time = timeParts[0] || '';
+          end_time = timeParts[1] || '';
+          continue;
+        }
+
+        if (!instructor && course_title) {
+          instructor = line;
+        }
+      }
+
+      start_time = start_time.replace(/\s*to\s*/gi, '-').trim();
+      end_time = end_time.replace(/\s*to\s*/gi, '-').trim();
+
+      if (course_title) {
+        results.push({
+          course_title,
+          instructor,
+          strength,
+          room,
+          start_time,
+          end_time
+        });
+      }
+    }
+    return results;
+  }
+
+  function parseExamScheduleWorkbook(workbook) {
+    const departments = {};
+
+    for (const rawSheetName of workbook.SheetNames) {
+      const deptName = rawSheetName.trim();
+      const ws       = workbook.Sheets[rawSheetName];
+      const rows     = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      if (!rows || rows.length < 4) continue;
+
+      let headerRowIdx = -1;
+      for (let r = 0; r < Math.min(8, rows.length); r++) {
+        const c0 = String(rows[r][0] || '').toLowerCase().trim();
+        if (c0 === 'program' || c0 === 'prgram' || c0 === 'programme') {
+          headerRowIdx = r;
+          break;
+        }
+      }
+      if (headerRowIdx === -1) continue;
+
+      const headerRow  = rows[headerRowIdx];
+      const dateHeaders = [];
+      for (let c = 1; c < headerRow.length; c++) {
+        dateHeaders.push(parseDateHeader(headerRow[c]));
+      }
+
+      const entries = [];
+      for (let r = headerRowIdx + 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.every(c => c === null || String(c || '').trim() === '')) continue;
+
+        const rawProgram = String(row[0] || '').trim();
+        if (!rawProgram || rawProgram === ':') continue;
+
+        const program = rawProgram.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+
+        for (let c = 1; c < row.length; c++) {
+          const cell = row[c];
+          if (!cell || String(cell).trim() === '') continue;
+
+          const dateInfo  = dateHeaders[c - 1] || { iso: null, day: null, label: '' };
+          const examItems = parseCellBlock(cell);
+
+          for (const item of examItems) {
+            entries.push({
+              department:      deptName,
+              program:         program,
+              course_title:    item.course_title,
+              exam_date:       dateInfo.iso,
+              exam_date_label: dateInfo.label,
+              exam_day:        dateInfo.day,
+              start_time:      item.start_time,
+              end_time:        item.end_time,
+              instructor:      item.instructor,
+              room:            item.room,
+              strength:        item.strength,
+            });
+          }
+        }
+      }
+
+      if (entries.length > 0) {
+        departments[deptName] = entries;
+      }
+    }
+
+    return departments;
+  }
+
+  const handleExcelSelect = (file) => {
+    if (!file) return;
+    if (!file.name.match(/\.(xlsx|xls)$/i)) {
+      setError('Please upload a valid Excel file (.xlsx or .xls)');
+      return;
+    }
+    setParseLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const parsed = parseExamScheduleWorkbook(workbook);
+        
+        if (Object.keys(parsed).length === 0) {
+          throw new Error("No valid department sheets found in the workbook (expected CS, Math, Economics, Biotech, ES, BEN, MS).");
+        }
+
+        setPreviewData(parsed);
+        const depts = Object.keys(parsed).sort();
+        if (depts.length > 0) setActiveDept(depts[0]);
+        setSelectedFile(file);
+      } catch (err) {
+        setError(err.message || 'Failed to read Excel file. Please check the structure.');
+      } finally {
+        setParseLoading(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   const fetchUploads = async () => {
-    if (!isDatabaseConnected()) return;
+    if (!isDatabaseConnected()) {
+      const localUploads = (exams || []).filter(e => e.upload_type === 'excel');
+      setUploads(localUploads);
+      if ((user.role === 'Student' || user.role === 'Faculty') && localUploads.length > 0 && !viewingUpload) {
+        setViewingUpload(localUploads[0]);
+      }
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from('exam_schedule_uploads')
@@ -71,19 +322,34 @@ const ExamManagement = ({
       
       if (error) {
         if (error.code === 'PGRST205') {
-          console.warn("Exam schedule tables not found. Please run the migration: 20260516194000_exam_schedule_excel.sql");
-          return; // Silently fail but log warning
+          console.warn("Exam schedule tables not found. Please run the migration.");
+          return;
         }
         throw error;
       }
       setUploads(data || []);
+      
+      // Auto-load the most recent upload for student/faculty if nothing is selected yet
+      if ((user.role === 'Student' || user.role === 'Faculty') && data && data.length > 0 && !viewingUpload) {
+        setViewingUpload(data[0]);
+      }
     } catch (err) {
       console.error("Fetch Uploads Error:", err);
     }
   };
 
   const fetchEntries = async (uploadId) => {
-    if (!isDatabaseConnected()) return;
+    if (!isDatabaseConnected()) {
+      const localEntries = (exams || []).filter(e => e.type === 'excel_schedule' && e.upload_id === uploadId);
+      // Sort local entries by exam_date
+      localEntries.sort((a, b) => {
+        const da = new Date(a.exam_date || 0);
+        const db = new Date(b.exam_date || 0);
+        return da - db;
+      });
+      setViewEntries(localEntries);
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from('exam_schedule_entries')
@@ -99,204 +365,128 @@ const ExamManagement = ({
 
   React.useEffect(() => {
     fetchUploads();
-  }, []);
+  }, [exams]);
 
   React.useEffect(() => {
     if (viewingUpload) {
       if (viewingUpload.upload_type === 'excel') {
         fetchEntries(viewingUpload.id);
-        setActiveDept('all');
+        setViewDept('all');
+        setViewProgram('all');
       }
     }
-  }, [viewingUpload]);
-
-  // --- Drag & Drop ---
-  React.useEffect(() => {
-    if (user.role !== 'Admin' || activeTab !== 'excel') return;
-    const zone = document.getElementById('excel-drop-zone');
-    if (!zone) return;
-
-    const onDragOver = (e) => { e.preventDefault(); zone.classList.add('drag-over'); };
-    const onDragLeave = () => zone.classList.remove('drag-over');
-    const onDrop = (e) => {
-      e.preventDefault();
-      zone.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if (file) processExcelFile(file);
-    };
-
-    zone.addEventListener('dragover', onDragOver);
-    zone.addEventListener('dragleave', onDragLeave);
-    zone.addEventListener('drop', onDrop);
-    return () => {
-      zone.removeEventListener('dragover', onDragOver);
-      zone.removeEventListener('dragleave', onDragLeave);
-      zone.removeEventListener('drop', onDrop);
-    };
-  }, [user.role, activeTab]);
-
-  // --- Excel Processing ---
-  const handleExcelFile = (e) => {
-    const file = e.target.files[0];
-    if (file) processExcelFile(file);
-  };
-
-  const processExcelFile = (file) => {
-    if (!file.name.match(/\.(xlsx|xls)$/i)) {
-      setError('Please upload a valid Excel file (.xlsx or .xls)');
-      return;
-    }
-    setParseLoading(true);
-    setError(null);
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-        const parsed = parseWorkbook(workbook);
-        setPreviewData(parsed);
-        const depts = Object.keys(parsed);
-        if (depts.length > 0) setActiveDept(depts[0]);
-        setSelectedFile(file);
-      } catch (err) {
-        setError('Failed to read Excel file. Please check format.');
-      } finally {
-        setParseLoading(false);
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
-  const parseWorkbook = (workbook) => {
-    const departments = {};
-    const COLUMN_MAP = {
-      course_code:   ['course code', 'code', 'course no', 'course#', 'subject code'],
-      course_title:  ['course title', 'title', 'subject', 'course name', 'subject name', 'paper'],
-      exam_date:     ['date', 'exam date', 'examination date', 'day/date'],
-      exam_day:      ['day', 'exam day', 'weekday'],
-      start_time:    ['start time', 'from', 'time from', 'start', 'exam time', 'time'],
-      end_time:      ['end time', 'to', 'time to', 'end', 'finish'],
-      venue:         ['venue', 'room', 'hall', 'location', 'center', 'place'],
-      batch_section: ['section', 'batch', 'class', 'group', 'batch/section', 'section/batch'],
-      credit_hours:  ['credit hours', 'cr hrs', 'credits', 'cr.hrs', 'credit'],
-      remarks:       ['remarks', 'note', 'notes', 'comment', 'comments'],
-    };
-
-    const findColumn = (headerRow, fieldAliases) => {
-      const normalized = headerRow.map(h => String(h || '').toLowerCase().trim());
-      for (const alias of fieldAliases) {
-        const idx = normalized.findIndex(h => h.includes(alias));
-        if (idx !== -1) return idx;
-      }
-      return -1;
-    };
-
-    workbook.SheetNames.forEach(sheetName => {
-      const trimmed = sheetName.trim();
-      if (!trimmed || (trimmed.toLowerCase() === 'sheet1' && workbook.SheetNames.length > 1)) return;
-      const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-      if (rows.length < 2) return;
-
-      let headerRowIdx = 0;
-      for (let i = 0; i < Math.min(5, rows.length); i++) {
-        const nonEmpty = rows[i].filter(c => String(c).trim() !== '').length;
-        if (nonEmpty >= 3) { headerRowIdx = i; break; }
-      }
-
-      const headerRow = rows[headerRowIdx].map(h => String(h || '').toLowerCase().trim());
-      const colIdx = {};
-      Object.entries(COLUMN_MAP).forEach(([field, aliases]) => { colIdx[field] = findColumn(headerRow, aliases); });
-
-      const entries = [];
-      for (let i = headerRowIdx + 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (row.every(c => String(c).trim() === '')) continue;
-        const titleIdx = colIdx['course_title'];
-        if (titleIdx === -1 || !String(row[titleIdx] || '').trim()) continue;
-
-        const getVal = (field) => {
-          const idx = colIdx[field];
-          if (idx === -1) return '';
-          return String(row[idx] || '').trim();
-        };
-
-        let examDate = null;
-        const rawDate = colIdx['exam_date'] !== -1 ? row[colIdx['exam_date']] : null;
-        if (rawDate) {
-          if (rawDate instanceof Date) examDate = rawDate.toISOString().split('T')[0];
-          else if (typeof rawDate === 'number') {
-            const d = XLSX.SSF.parse_date_code(rawDate);
-            examDate = `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
-          } else {
-            const parsed = new Date(rawDate);
-            if (!isNaN(parsed)) examDate = parsed.toISOString().split('T')[0];
-            else examDate = String(rawDate);
-          }
-        }
-
-        entries.push({
-          department: trimmed,
-          course_code: getVal('course_code'),
-          course_title: getVal('course_title'),
-          exam_date: examDate,
-          exam_day: getVal('exam_day'),
-          start_time: getVal('start_time'),
-          end_time: getVal('end_time'),
-          venue: getVal('venue'),
-          batch_section: getVal('batch_section'),
-          credit_hours: getVal('credit_hours'),
-          remarks: getVal('remarks'),
-        });
-      }
-      if (entries.length > 0) departments[trimmed] = entries;
-    });
-    return departments;
-  };
+  }, [viewingUpload, exams]);
 
   const saveSchedule = async () => {
-    if (!semesterLabel.trim()) return setError('Please enter a semester label.');
+    if (!semesterLabel.trim()) {
+      setError('Please enter a semester label first.');
+      return;
+    }
     setSaving(true);
     setError(null);
+
     try {
+      const uploadId = Date.now().toString();
+      // Flatten all parsed Excel entries from previewData
+      const allEntries = Object.values(previewData).flat().map(e => ({
+        ...e,
+        upload_id: uploadId,
+      }));
+
       if (isDatabaseConnected()) {
-        const { data: upload, error: uErr } = await supabase.from('exam_schedule_uploads').insert({
-          file_name: selectedFile.name, upload_type: 'excel', semester: semesterLabel.trim()
-        }).select().single();
-        
-        if (uErr) {
-          if (uErr.code === 'PGRST204' || uErr.code === 'PGRST205' || uErr.message.includes('not found')) {
-            throw new Error("Database tables not found. Please run the SQL migration first.");
-          }
-          throw uErr;
-        }
+        // 1. Create upload record
+        const { data: upload, error: uploadErr } = await supabase
+          .from('exam_schedule_uploads')
+          .insert({ 
+            file_name: selectedFile.name, 
+            upload_type: 'excel', 
+            semester: semesterLabel.trim() 
+          })
+          .select().single();
+        if (uploadErr) throw uploadErr;
 
-        const allEntries = [];
-        Object.values(previewData).forEach(deptEntries => {
-          deptEntries.forEach(entry => { allEntries.push({ ...entry, upload_id: upload.id }); });
-        });
+        // 2. Flatten all entries using real DB upload_id
+        const dbEntries = allEntries.map(e => ({
+          ...e,
+          upload_id: upload.id,
+        }));
 
+        // 3. Batch insert (100 at a time)
         const BATCH = 100;
-        for (let i = 0; i < allEntries.length; i += BATCH) {
-          const { error: iErr } = await supabase.from('exam_schedule_entries').insert(allEntries.slice(i, i + BATCH));
-          if (iErr) throw iErr;
+        for (let i = 0; i < dbEntries.length; i += BATCH) {
+          const { error } = await supabase
+            .from('exam_schedule_entries')
+            .insert(dbEntries.slice(i, i + BATCH));
+          if (error) throw error;
         }
+
+        if (setExams) {
+          setExams(prev => [...prev, ...dbEntries]);
+        }
+      } else {
+        // Local only fallback - save in memory state and localStorage
+        const localUpload = {
+          id: uploadId,
+          file_name: selectedFile.name,
+          upload_type: 'excel',
+          semester: semesterLabel.trim(),
+          uploaded_at: new Date().toISOString()
+        };
+
+        const localEntries = allEntries.map(e => ({
+          ...e,
+          type: 'excel_schedule',
+          id: `local_entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          upload_id: uploadId,
+          semester: semesterLabel.trim()
+        }));
+
+        if (setExams) {
+          setExams(prev => [...prev, localUpload, ...localEntries]);
+        }
+        
+        setUploads(prev => [...prev, {
+          id: uploadId,
+          file_name: selectedFile.name,
+          upload_type: 'excel',
+          semester: semesterLabel.trim(),
+          uploaded_at: new Date().toISOString()
+        }]);
       }
-      setSuccessMsg(`Synchronized ${Object.keys(previewData).length} departments successfully.`);
-      setPreviewData(null); setSelectedFile(null); setSemesterLabel('');
+
+      setSuccessMsg(`Saved ${allEntries.length} exam entries across ${Object.keys(previewData).length} departments.`);
+      setPreviewData(null);
+      setSelectedFile(null);
+      setSemesterLabel('');
       fetchUploads();
-    } catch (err) { setError(`Save failed: ${err.message}`); } finally { setSaving(false); }
+    } catch (err) {
+      setError(`Save failed: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDeleteUpload = async (id) => {
-    if (!isDatabaseConnected()) return;
-    try {
-      const { error } = await supabase.from('exam_schedule_uploads').delete().eq('id', id);
-      if (error) throw error;
-      notify("Institutional Record Purged Successfully");
-      fetchUploads();
-    } catch (err) { notify(err.message, "error"); }
+    if (isDatabaseConnected()) {
+      try {
+        const { error } = await supabase.from('exam_schedule_uploads').delete().eq('id', id);
+        if (error) throw error;
+        notify("Institutional Record Purged Successfully");
+        if (setExams) {
+          setExams(prev => prev.filter(e => e.upload_id !== id && e.id !== id));
+        }
+        fetchUploads();
+      } catch (err) { notify(err.message, "error"); }
+    } else {
+      if (setExams) {
+        setExams(prev => prev.filter(e => e.upload_id !== id && e.id !== id));
+      }
+      notify("Institutional Local Record Purged Successfully");
+      setUploads(prev => prev.filter(u => u.id !== id));
+      if (viewingUpload && viewingUpload.id === id) {
+        setViewingUpload(null);
+      }
+    }
   };
 
   const handleSaveMarks = async (marksToSave) => {
@@ -664,11 +854,94 @@ const ExamManagement = ({
   }
 
   // --- Exam Schedule View ---
+  // Determine student batch code and faculty name for filtering
+  let studentBatch = '';
+  if (user.role === 'Student') {
+    const studentRecord = students.find(s => s.id === user.id || s.dbID === user.id);
+    const regNum = user.regNumber || studentRecord?.regNumber || user.id || '';
+    if (regNum.match(/^[A-Z0-9]+-[A-Z0-9]+/i)) {
+      studentBatch = regNum.split('-').slice(0, 2).join('-').toUpperCase();
+    } else {
+      const prog = user.program || studentRecord?.program || '';
+      let progCode = '';
+      if (prog.includes('Computer Science') || prog.includes('CS')) progCode = 'BCS';
+      else if (prog.includes('Software Engineering') || prog.includes('SE')) progCode = 'BSE';
+      else if (prog.includes('Business') || prog.includes('BBA')) progCode = 'BBA';
+      
+      const batchStr = user.batch || studentRecord?.batch || '';
+      const year = batchStr.match(/\d+/)?.[0]?.slice(-2) || '';
+      const term = batchStr.toLowerCase().includes('spring') ? 'SP' : 'FA';
+      if (progCode && year) studentBatch = `${term}${year}-${progCode}`;
+    }
+  }
+
+  // Filter entries dynamically
+  let filteredEntries = [...viewEntries];
+
+  if (user.role === 'Student' && studentFilterBatchOnly && studentBatch) {
+    const matched = viewEntries.filter(e => {
+      const cleanProg = String(e.program || '').replace(/\s+/g,'');
+      return e.program.includes(studentBatch) || studentBatch.includes(cleanProg);
+    });
+    if (matched.length > 0) {
+      filteredEntries = matched;
+    } else {
+      const studentRecord = students.find(s => s.id === user.id || s.dbID === user.id);
+      const studentProg = (user.program || studentRecord?.program || '').toLowerCase();
+      let matchedDept = '';
+      if (studentProg.includes('computer') || studentProg.includes('software') || studentProg.includes('cs') || studentProg.includes('se')) {
+        matchedDept = 'CS';
+      } else if (studentProg.includes('business') || studentProg.includes('management') || studentProg.includes('ba')) {
+        matchedDept = 'MS';
+      }
+      
+      if (matchedDept && viewEntries.some(e => e.department === matchedDept)) {
+        filteredEntries = viewEntries.filter(e => e.department === matchedDept);
+      }
+    }
+  }
+
+  if (user.role === 'Faculty' && studentFilterBatchOnly) {
+    const teacherName = (user.facultyName || user.name || '').toLowerCase();
+    if (teacherName) {
+      const matched = viewEntries.filter(e => String(e.instructor || '').toLowerCase().includes(teacherName));
+      if (matched.length > 0) {
+        filteredEntries = matched;
+      }
+    }
+  }
+
+  if (viewDept !== 'all') {
+    filteredEntries = filteredEntries.filter(e => e.department === viewDept);
+  }
+
+  if (viewDept !== 'all' && viewProgram !== 'all') {
+    filteredEntries = filteredEntries.filter(e => e.program === viewProgram);
+  }
+
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase();
+    filteredEntries = filteredEntries.filter(e => 
+      String(e.course_title || '').toLowerCase().includes(q) ||
+      String(e.program || '').toLowerCase().includes(q) ||
+      String(e.instructor || '').toLowerCase().includes(q) ||
+      String(e.room || '').toLowerCase().includes(q) ||
+      String(e.exam_date_label || '').toLowerCase().includes(q) ||
+      String(e.exam_day || '').toLowerCase().includes(q)
+    );
+  }
+
+  filteredEntries.sort((a, b) => {
+    if (!a.exam_date) return 1;
+    if (!b.exam_date) return -1;
+    return a.exam_date.localeCompare(b.exam_date);
+  });
+
   return (
     <div className="view-container fade-in">
       {viewingUpload ? (
         <div className="schedule-view-page fade-in">
-          <div className="schedule-view-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px'}}>
+          <div className="schedule-view-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px', flexWrap:'wrap', gap:'16px'}}>
             <div>
               <div style={{fontSize:'12px', opacity:0.6, marginBottom:'4px'}}>Exam Schedule / {viewingUpload.semester}</div>
               <h2 style={{margin:0}}>{viewingUpload.semester} — Official Date Sheet</h2>
@@ -679,22 +952,83 @@ const ExamManagement = ({
             <button className="btn-primary-premium" onClick={() => setViewingUpload(null)}>← BACK TO HUB</button>
           </div>
 
-          <div className="schedule-search mb-24">
-            <input 
-              className="input-premium" 
-              placeholder="Search by Course, Venue, or Section..." 
-              value={search} 
-              onChange={e => setSearch(e.target.value)}
-              style={{maxWidth: '400px'}}
-            />
+          {/* Search & Filter Controls */}
+          <div className="schedule-controls-card card p-24 mb-24" style={{display:'flex', gap:'16px', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between'}}>
+            <div style={{display:'flex', gap:'16px', flexWrap:'wrap', flex:1}}>
+              <div style={{minWidth:'250px', flex:1}}>
+                <label style={{fontSize:'12px', display:'block', marginBottom:'6px', fontWeight:600}}>Search Course, Instructor, Room or Code</label>
+                <input 
+                  className="input-premium" 
+                  placeholder="Search exams..." 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{width: '100%', margin:0}}
+                />
+              </div>
+
+              {viewDept !== 'all' && (
+                <div style={{minWidth:'200px'}}>
+                  <label style={{fontSize:'12px', display:'block', marginBottom:'6px', fontWeight:600}}>Program / Class</label>
+                  <select 
+                    className="input-premium" 
+                    value={viewProgram} 
+                    onChange={e => setViewProgram(e.target.value)}
+                    style={{width: '100%', margin:0}}
+                  >
+                    <option value="all">All Programs</option>
+                    {[...new Set(viewEntries.filter(e => e.department === viewDept).map(e => e.program))].sort().map(prog => (
+                      <option key={prog} value={prog}>{prog}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {user.role === 'Student' && (
+              <div style={{display:'flex', alignItems:'center', gap:'8px', background:'rgba(26, 58, 107, 0.1)', padding:'8px 16px', borderRadius:'6px'}}>
+                <input 
+                  type="checkbox" 
+                  id="studentBatchToggle" 
+                  checked={studentFilterBatchOnly} 
+                  onChange={e => setStudentFilterBatchOnly(e.target.checked)} 
+                  style={{cursor:'pointer', width:'18px', height:'18px', margin:0}}
+                />
+                <label htmlFor="studentBatchToggle" style={{fontSize:'13px', fontWeight:600, cursor:'pointer', userSelect:'none'}}>
+                  Show my batch only ({studentBatch || 'TBD'})
+                </label>
+              </div>
+            )}
+
+            {user.role === 'Faculty' && (
+              <div style={{display:'flex', alignItems:'center', gap:'8px', background:'rgba(26, 58, 107, 0.1)', padding:'8px 16px', borderRadius:'6px'}}>
+                <input 
+                  type="checkbox" 
+                  id="facultyToggle" 
+                  checked={studentFilterBatchOnly} 
+                  onChange={e => setStudentFilterBatchOnly(e.target.checked)} 
+                  style={{cursor:'pointer', width:'18px', height:'18px', margin:0}}
+                />
+                <label htmlFor="facultyToggle" style={{fontSize:'13px', fontWeight:600, cursor:'pointer', userSelect:'none'}}>
+                  My invigilations only ({user.facultyName || user.name})
+                </label>
+              </div>
+            )}
           </div>
 
+          {/* Department pills tab bar */}
           <div className="dept-tabs-bar" style={{display:'flex', flexWrap:'wrap', gap:'8px', marginBottom:'24px', borderBottom:'1px solid var(--color-border)', paddingBottom:'16px'}}>
-            <button className={`dept-tab ${activeDept === 'all' ? 'active' : ''}`} onClick={() => setActiveDept('all')}>
+            <button 
+              className={`dept-tab ${viewDept === 'all' ? 'active' : ''}`} 
+              onClick={() => { setViewDept('all'); setViewProgram('all'); }}
+            >
               All Departments <span className="dept-count" style={{marginLeft:'6px', opacity:0.6}}>{viewEntries.length}</span>
             </button>
             {[...new Set(viewEntries.map(e => e.department))].sort().map(dept => (
-              <button key={dept} className={`dept-tab ${activeDept === dept ? 'active' : ''}`} onClick={() => setActiveDept(dept)}>
+              <button 
+                key={dept} 
+                className={`dept-tab ${viewDept === dept ? 'active' : ''}`} 
+                onClick={() => { setViewDept(dept); setViewProgram('all'); }}
+              >
                 {dept} <span className="dept-count" style={{marginLeft:'6px', opacity:0.6}}>{viewEntries.filter(e => e.department === dept).length}</span>
               </button>
             ))}
@@ -704,40 +1038,45 @@ const ExamManagement = ({
             <table className="premium-table">
               <thead>
                 <tr>
-                  {activeDept === 'all' && <th>Dept</th>}
-                  <th>Course Code</th>
-                  <th>Course Title</th>
+                  <th>Program</th>
+                  <th>Course Title / Code</th>
                   <th>Date</th>
                   <th>Day</th>
                   <th>Time</th>
-                  <th>Venue</th>
-                  <th>Section</th>
-                  <th>Cr.Hrs</th>
-                  <th>Remarks</th>
+                  <th>Instructor</th>
+                  <th>Room</th>
+                  <th>Strength</th>
                 </tr>
               </thead>
               <tbody>
-                {viewEntries
-                  .filter(e => activeDept === 'all' || e.department === activeDept)
-                  .filter(e => {
-                    if (!search.trim()) return true;
-                    const q = search.toLowerCase();
-                    return (e.course_title?.toLowerCase().includes(q) || e.course_code?.toLowerCase().includes(q) || e.venue?.toLowerCase().includes(q) || e.batch_section?.toLowerCase().includes(q));
-                  })
-                  .map((entry, i) => (
-                    <tr key={entry.id} className={i % 2 === 0 ? '' : 'row-alt'}>
-                      {activeDept === 'all' && <td data-label="Dept"><span className="badge-premium badge-primary">{entry.department}</span></td>}
-                      <td data-label="Code" style={{fontWeight:700}}>{entry.course_code || '—'}</td>
-                      <td data-label="Title" style={{fontWeight:600}}>{entry.course_title}</td>
-                      <td data-label="Date">{entry.exam_date ? new Date(entry.exam_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
-                      <td data-label="Day">{entry.exam_day || '—'}</td>
-                      <td data-label="Time"><strong>{entry.start_time}</strong> — {entry.end_time}</td>
-                      <td data-label="Venue">{entry.venue || '—'}</td>
-                      <td data-label="Section">{entry.batch_section || '—'}</td>
-                      <td data-label="Credits">{entry.credit_hours || '—'}</td>
-                      <td data-label="Remarks" style={{fontSize:'11px', opacity:0.7}}>{entry.remarks || '—'}</td>
-                    </tr>
-                  ))}
+                {filteredEntries.map((entry, i) => (
+                  <tr key={entry.id || i} className={i % 2 === 0 ? '' : 'row-alt'}>
+                    <td data-label="Program" style={{fontWeight:600}}>{entry.program}</td>
+                    <td data-label="Course">
+                      <div style={{display:'flex', flexDirection:'column'}}>
+                        <span style={{fontWeight:700, color:'var(--color-ink)'}}>{entry.course_title}</span>
+                      </div>
+                    </td>
+                    <td data-label="Date">
+                      <div style={{display:'flex', flexDirection:'column'}}>
+                        <strong className="font-monospace">{entry.exam_date || '—'}</strong>
+                        {entry.exam_date_label && <span style={{fontSize:'10px', opacity:0.6}}>{entry.exam_date_label}</span>}
+                      </div>
+                    </td>
+                    <td data-label="Day">{entry.exam_day || '—'}</td>
+                    <td data-label="Time"><strong>{entry.start_time}</strong> — {entry.end_time}</td>
+                    <td data-label="Instructor">{entry.instructor || '—'}</td>
+                    <td data-label="Room">
+                      <span className="badge-premium" style={{background:'var(--color-border)', color:'var(--color-ink)'}}>
+                        {entry.room || '—'}
+                      </span>
+                    </td>
+                    <td data-label="Strength" className="font-monospace">{entry.strength || '—'}</td>
+                  </tr>
+                ))}
+                {filteredEntries.length === 0 && (
+                  <tr><td colSpan="8" style={{textAlign:'center', opacity:0.5, padding:'40px'}}>No exams matching the selected criteria.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -779,22 +1118,42 @@ const ExamManagement = ({
                 ) : (
                   <div className="excel-import-panel">
                     <div className="import-instructions mb-24">
-                      <h3>Excel-Driven Institutional Scheduling</h3>
-                      <p style={{fontSize:'13px', opacity:0.8}}>Upload an Excel workbook where each sheet corresponds to a department (CS, EE, BBA etc.).</p>
+                      <h3>Excel-Driven Institutional Date Sheet Scheduling</h3>
+                      <p style={{fontSize:'13px', opacity:0.8}}>
+                        Upload a multi-department scheduling Excel workbook containing sheets trimmed exactly to: CS, Math, Economics, Biotech, ES, BEN, MS.
+                      </p>
                       <div className="column-guide mt-12" style={{display:'flex', flexWrap:'wrap', gap:'6px'}}>
-                         {['Course Code', 'Course Title', 'Date', 'Day', 'Start Time', 'End Time', 'Venue', 'Section', 'Cr.Hrs'].map(c => <span key={c} className="badge-premium" style={{background:'var(--color-border)', opacity:0.7}}>{c}</span>)}
+                         {['Multi-exam cells (\\n\\n)', 'Trimmed sheets', 'Dynamic program parser', 'Room cleanups'].map(c => <span key={c} className="badge-premium" style={{background:'var(--color-border)', opacity:0.7}}>{c}</span>)}
                       </div>
                     </div>
 
-                    <div className="upload-zone" id="excel-drop-zone" style={{border:'2px dashed var(--color-border)', borderRadius:'8px', padding:'40px', textAlign:'center', cursor:'pointer', marginBottom:'24px', transition:'all 0.2s'}}>
+                    <div 
+                      className={`excel-dropzone ${dragOver ? 'drag-over' : ''}`} 
+                      id="excel-dropzone"
+                      onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={e => {
+                        e.preventDefault();
+                        setDragOver(false);
+                        const file = e.dataTransfer.files[0];
+                        if (file) handleExcelSelect(file);
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
                       <div style={{fontSize:'40px', marginBottom:'12px'}}>📊</div>
                       <p style={{fontWeight:600, margin:0}}>Drag & Drop .xlsx file or click to browse</p>
-                      <input type="file" accept=".xlsx,.xls" onChange={handleExcelFile} style={{display:'none'}} id="excel-input" />
-                      <button className="btn-primary-premium mt-12" onClick={() => document.getElementById('excel-input').click()}>SELECT EXCEL FILE</button>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef}
+                        accept=".xlsx,.xls" 
+                        onChange={e => handleExcelSelect(e.target.files[0])} 
+                        style={{display:'none'}} 
+                      />
+                      <button className="btn-primary-premium mt-12" onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}>SELECT EXCEL FILE</button>
                     </div>
 
                     <div className="semester-field mb-24" style={{maxWidth:'300px'}}>
-                      <label>Semester Label</label>
+                      <label style={{fontSize:'12px', display:'block', marginBottom:'8px', fontWeight:600}}>Semester Session Label</label>
                       <input className="input-premium" placeholder="e.g. Spring 2026" value={semesterLabel} onChange={e => setSemesterLabel(e.target.value)} />
                     </div>
                   </div>
@@ -802,7 +1161,7 @@ const ExamManagement = ({
               </div>
             </div>
           ) : (
-            // For Student/Faculty - Just show master PDF button if it exists
+            // For Student/Faculty - Show master PDF button if it exists
             exams.some(e => e.type === 'pdf_schedule') && (
               <div className="card mb-32" style={{padding:'32px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                 <div>
@@ -812,17 +1171,6 @@ const ExamManagement = ({
                 <button className="btn-primary-premium" onClick={() => window.open(exams.find(e => e.type === 'pdf_schedule').fileURL, '_blank')}>VIEW MASTER PDF</button>
               </div>
             )
-          )}
-
-          {/* Database Setup Warning - Admin Only */}
-          {user.role === 'Admin' && uploads.length === 0 && !error && (
-            <div className="card mb-24" style={{border:'1px dashed var(--color-accent)', background:'rgba(201, 164, 53, 0.05)', padding:'24px'}}>
-               <h4 style={{margin:0, color:'var(--color-accent)'}}>⚠️ DATABASE SETUP REQUIRED</h4>
-               <p style={{fontSize:'13px', margin:'8px 0 0 0', opacity:0.8}}>
-                 The Excel scheduling tables were not detected in your Supabase instance. 
-                 Please run the migration file <code>20260516194000_exam_schedule_excel.sql</code> in your SQL Editor to enable this feature.
-               </p>
-            </div>
           )}
 
           {/* Published Excel Sessions */}
@@ -868,18 +1216,20 @@ const ExamManagement = ({
                       <th>Assessment Type</th>
                       <th>Scheduled Date</th>
                       <th>Venue</th>
-                      <th>Invigilator</th>
+                      <th>Instructor / Invigilator</th>
                       {user.role === 'Admin' && <th>Registry Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {exams.map((e, idx) => (
+                    {exams.filter(e => e.upload_type !== 'excel').map((e, idx) => (
                       <tr key={`exam-row-${idx}-${e.id || 'new'}`}>
-                        <td data-label="Course Code" className="font-monospace" style={{fontWeight: 700}}>{e.courseID}</td>
-                        <td data-label="Assessment Type"><span className={`badge-premium ${e.type === 'Final' ? 'badge-primary' : 'badge-gold'}`}>{(e.type || 'Exam').toUpperCase()}</span></td>
-                        <td data-label="Schedule Date" className="font-monospace">{e.date} — {e.time}</td>
-                        <td data-label="Assigned Venue">{e.venue}</td>
-                        <td data-label="Invigilator">{e.invigilator || 'TBA'}</td>
+                        <td data-label="Course Code" className="font-monospace" style={{fontWeight: 700}}>{e.courseID || e.course_title || e.course_code || 'N/A'}</td>
+                        <td data-label="Assessment Type"><span className={`badge-premium ${(e.type === 'Final' || e.type === 'excel_schedule' || !e.type) ? 'badge-primary' : 'badge-gold'}`}>{((e.type && e.type !== 'excel_schedule') ? e.type : 'Final Exam').toUpperCase()}</span></td>
+                        <td data-label="Schedule Date" className="font-monospace">
+                          {e.date || e.exam_date_label || e.exam_date || '—'} — {e.time || (e.start_time && e.end_time ? `${e.start_time} - ${e.end_time}` : e.start_time || '—')}
+                        </td>
+                        <td data-label="Assigned Venue">{e.venue || e.room || '—'}</td>
+                        <td data-label="Instructor / Invigilator">{e.invigilator || e.instructor || 'TBA'}</td>
                         {user.role === 'Admin' && (
                           <td data-label="Actions">
                             <div style={{display: 'flex', gap: '8px'}}>
@@ -901,35 +1251,81 @@ const ExamManagement = ({
       {/* Excel Preview Modal (Admin Only) */}
       {user.role === 'Admin' && previewData && (
         <div className="modal-overlay-premium fade-in">
-          <div className="card" style={{width:'90vw', maxWidth:'1200px', maxHeight:'90vh', display:'flex', flexDirection:'column', padding:0}}>
-            <div className="modal-header" style={{padding:'24px', borderBottom:'1px solid var(--color-border)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-               <h2 style={{margin:0}}>Parsing Preview — {Object.keys(previewData).length} Depts</h2>
-               <div style={{display:'flex', gap:'8px'}}>
-                  {Object.keys(previewData).map(dept => (
-                    <button key={dept} className={`badge-premium ${activeDept === dept ? 'badge-primary' : ''}`} style={{cursor:'pointer'}} onClick={() => setActiveDept(dept)}>{dept}</button>
-                  ))}
+          <div className="card glass-card shadow-lg" style={{width:'95vw', maxWidth:'1400px', maxHeight:'90vh', display:'flex', flexDirection:'column', padding:0, border:'1px solid var(--glass-border)'}}>
+            <div className="modal-header" style={{padding:'24px', borderBottom:'1px solid var(--color-border)', display:'flex', flexDirection:'column', gap:'16px'}}>
+               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                 <h2 style={{margin:0, fontFamily:'var(--font-heading)'}}>📊 Academic Import Preview</h2>
+                 <span className="badge-premium badge-gold" style={{fontSize:'12px', padding:'6px 12px'}}>
+                   {Object.values(previewData).flat().length} Exams Parsed
+                 </span>
+               </div>
+               
+               {/* Department Tabs in Modal */}
+               <div className="dept-tabs-bar" style={{display:'flex', flexWrap:'wrap', gap:'8px'}}>
+                 {Object.keys(previewData).sort().map(dept => {
+                   const count = previewData[dept].length;
+                   return (
+                     <button 
+                       key={dept} 
+                       className={`dept-tab ${activeDept === dept ? 'active' : ''}`} 
+                       onClick={() => setActiveDept(dept)}
+                       style={{padding:'8px 16px', fontSize:'13px', borderRadius:'6px'}}
+                     >
+                       {dept} <span className="dept-count" style={{marginLeft:'6px', opacity:0.6}}>({count})</span>
+                     </button>
+                   );
+                 })}
                </div>
             </div>
+            
             <div style={{flex:1, overflowY:'auto', padding:'24px'}}>
               <table className="premium-table">
-                <thead><tr><th>Code</th><th>Title</th><th>Date</th><th>Day</th><th>Time</th><th>Venue</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Program</th>
+                    <th>Course Code / Title</th>
+                    <th>Exam Date</th>
+                    <th>Day</th>
+                    <th>Time</th>
+                    <th>Instructor</th>
+                    <th>Room</th>
+                    <th>Strength</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {previewData[activeDept]?.map((row, i) => (
-                    <tr key={i}>
-                      <td>{row.course_code}</td>
-                      <td style={{fontWeight:600}}>{row.course_title}</td>
-                      <td>{row.exam_date}</td>
-                      <td>{row.exam_day}</td>
-                      <td>{row.start_time} - {row.end_time}</td>
-                      <td>{row.venue}</td>
+                    <tr key={i} className={i % 2 === 0 ? '' : 'row-alt'}>
+                      <td data-label="Program" style={{fontWeight:600}}>{row.program}</td>
+                      <td data-label="Course">
+                        <div style={{display:'flex', flexDirection:'column'}}>
+                          <span style={{fontWeight:700, color:'var(--color-ink)'}}>{row.course_title}</span>
+                        </div>
+                      </td>
+                      <td data-label="Date" className="font-monospace">{row.exam_date || row.exam_date_label || '—'}</td>
+                      <td data-label="Day">{row.exam_day || '—'}</td>
+                      <td data-label="Time"><strong>{row.start_time}</strong> - {row.end_time}</td>
+                      <td data-label="Instructor" style={{fontSize:'13px'}}>{row.instructor || '—'}</td>
+                      <td data-label="Room"><span className="badge-premium" style={{background:'var(--color-border)', color:'var(--color-ink)'}}>{row.room || '—'}</span></td>
+                      <td data-label="Strength" className="font-monospace" style={{fontWeight:600}}>{row.strength || '—'}</td>
                     </tr>
                   ))}
+                  {(!previewData[activeDept] || previewData[activeDept].length === 0) && (
+                    <tr><td colSpan="8" style={{textAlign:'center', opacity:0.5, padding:'40px'}}>No entries parsed for this department.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
-            <div className="modal-footer" style={{padding:'24px', borderTop:'1px solid var(--color-border)', display:'flex', justifyContent:'flex-end', gap:'12px'}}>
+            
+            <div className="modal-footer" style={{padding:'24px', borderTop:'1px solid var(--color-border)', display:'flex', justifyContent:'flex-end', gap:'12px', background:'var(--surface-container)'}}>
               <button className="btn-text-only" onClick={() => setPreviewData(null)}>CANCEL</button>
-              <button className="btn-primary-premium" disabled={saving} onClick={saveSchedule}>{saving ? 'SYNCHRONIZING...' : 'CONFIRM & SAVE REGISTRY'}</button>
+              <button 
+                className="btn-primary-premium" 
+                disabled={saving} 
+                onClick={saveSchedule}
+                style={{background:'var(--color-accent)', color:'var(--color-ink)', fontWeight:700}}
+              >
+                {saving ? 'SYNCHRONIZING...' : 'CONFIRM & SAVE REGISTRY'}
+              </button>
             </div>
           </div>
         </div>

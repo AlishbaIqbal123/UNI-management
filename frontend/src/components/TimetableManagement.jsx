@@ -3,7 +3,7 @@ import * as pdfjs from 'pdfjs-dist';
 import { supabase, isDatabaseConnected } from '../lib/supabase';
 
 // Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const TimetableManagement = ({ uploads, setUploads, setEntries }) => {
   const [file, setFile] = useState(null);

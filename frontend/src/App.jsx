@@ -24,6 +24,8 @@ import FacultyWorkspace from './components/FacultyWorkspace';
 import TimetableGrid from './components/TimetableGrid';
 import TimetableManagement from './components/TimetableManagement';
 import { generateInstitutionalReport } from './lib/exportUtils';
+import PasswordResetsManagement from './components/PasswordResetsManagement';
+
 
 
 
@@ -85,6 +87,7 @@ function App() {
     timetableUploads, setTimetableUploads, timetableEntries, setTimetableEntries,
     sessions, setSessions, sessionAttendance, setSessionAttendance,
     feeStructures, setFeeStructures,
+    passwordResetRequests, setPasswordResetRequests,
     loading
   } = useUMSData();
 
@@ -136,6 +139,57 @@ function App() {
     setCalendarConfig(prev => ({ ...prev, events }));
     notify("Academic Calendar Broadly Synchronized.");
     setIsModalOpen(false);
+  };
+
+  const handleInitiateRecovery = async (regNo) => {
+    const student = students.find(s => 
+      s.id.toLowerCase() === regNo.toLowerCase() || 
+      (s.regNumber && s.regNumber.toLowerCase() === regNo.toLowerCase())
+    );
+    
+    const fac = faculty.find(f => 
+      f.id.toLowerCase() === regNo.toLowerCase()
+    );
+    
+    let userFound = student || fac;
+    if (!userFound) {
+      alert("No student or faculty account was found matching the entered Registration Number / ID. Please check and try again.");
+      return;
+    }
+
+    const newRequest = {
+      id: `req-${Date.now()}`,
+      regNo: userFound.id || userFound.regNumber,
+      name: userFound.name || userFound.facultyName,
+      role: userFound.role || (student ? 'Student' : 'Faculty'),
+      status: 'Pending',
+      requestedAt: new Date().toISOString()
+    };
+
+    try {
+      if (isDatabaseConnected()) {
+        const { data, error } = await supabase
+          .from('password_reset_requests')
+          .insert({
+            reg_no: newRequest.regNo,
+            name: newRequest.name,
+            role: newRequest.role,
+            status: 'Pending'
+          })
+          .select();
+        if (error) throw error;
+        if (data && data[0]) {
+          newRequest.id = data[0].id;
+        }
+      }
+
+      setPasswordResetRequests(prev => [newRequest, ...prev]);
+      alert(`Account recovery submitted successfully for ${newRequest.name} (${newRequest.regNo})! Please ask the system administrator to approve your reset request.`);
+      setLoginStep('choice');
+    } catch (e) {
+      console.error("Failed to submit recovery request", e);
+      alert("Error: Unable to submit recovery request at this time.");
+    }
   };
 
   // --- Global CRUD ---
@@ -465,7 +519,7 @@ function App() {
   );
   if (appView === 'login') return (
     <div className="login-page-root" style={{display:'flex', flexDirection:'column', minHeight:'100vh', height: '100vh', overflowY: 'auto', overflowX: 'hidden'}}>
-      <Login onLogin={handleLogin} loginError={loginError} setLoginError={setLoginError} setStep={(s) => { setLoginStep(s); setRegSubStep(1); setAuthData({id:'', name:'', password:'', program: '', email: ''}); setLoginError(null); }} loginStep={loginStep} authData={authData} setAuthData={setAuthData} handleRegister={handleRegister} regSubStep={regSubStep} setRegSubStep={setRegSubStep} theme={theme} toggleTheme={toggleTheme} />
+      <Login onLogin={handleLogin} loginError={loginError} setLoginError={setLoginError} setStep={(s) => { setLoginStep(s); setRegSubStep(1); setAuthData({id:'', name:'', password:'', program: '', email: ''}); setLoginError(null); }} loginStep={loginStep} authData={authData} setAuthData={setAuthData} handleRegister={handleRegister} regSubStep={regSubStep} setRegSubStep={setRegSubStep} theme={theme} toggleTheme={toggleTheme} onInitiateRecovery={handleInitiateRecovery} />
       <Footer />
     </div>
   );
@@ -990,6 +1044,7 @@ function App() {
 
       case 'exams':
         return <ExamManagement 
+          mode="schedule"
           exams={exams} 
           setExams={setExams} 
           courses={courses} 
@@ -1011,6 +1066,17 @@ function App() {
       case 'departments': return <DepartmentManagement departments={departments} faculty={faculty} openForm={openForm} />;
       case 'catalog': return <CourseManagement courses={courses} setCourses={setCourses} faculty={faculty} enrolments={enrolments} user={user} openForm={openForm} handleDelete={(s,i,t,k) => setDeleteConfirm({open:true, setter:s, id:i, typeName:t, idKey:k})} />;
       case 'enrolments': return <EnrollmentManagement enrolments={enrolments} setEnrolments={setEnrolments} students={students} courses={courses} notify={notify} />;
+      case 'password-resets': return (
+        <PasswordResetsManagement 
+          students={students} 
+          setStudents={setStudents}
+          faculty={faculty}
+          setFaculty={setFaculty}
+          passwordResetRequests={passwordResetRequests}
+          setPasswordResetRequests={setPasswordResetRequests}
+          notify={notify}
+        />
+      );
       default: return <div className="placeholder-view glass-card p-40"><h2>{activeTab} Module</h2><p>CUI Services initializing...</p></div>;
     }
   };

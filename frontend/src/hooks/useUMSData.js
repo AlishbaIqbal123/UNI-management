@@ -113,8 +113,140 @@ export function useUMSData() {
   const [assessments, setAssessments] = useState(() => load('ums_assessments_v4', []));
   const [marks, setMarks] = useState(() => load('ums_marks_v4', []));
   const [feePayments, setFeePayments] = useState(() => load('ums_fee_payments_v1', []));
-  const [timetableUploads, setTimetableUploads] = useState(() => load('ums_timetable_uploads_v1', []));
-  const [timetableEntries, setTimetableEntries] = useState(() => load('ums_timetable_entries_v1', []));
+  const [passwordResetRequests, setPasswordResetRequests] = useState(() => load('ums_password_resets_v1', []));
+  const defaultUploads = [
+    {
+      id: 'mock-upload-1',
+      fileURL: '#',
+      type: 'student',
+      semesterLabel: 'Fall 2026',
+      uploadedAt: new Date().toISOString()
+    },
+    {
+      id: 'mock-upload-2',
+      fileURL: '#',
+      type: 'teacher',
+      semesterLabel: 'Fall 2026',
+      uploadedAt: new Date().toISOString()
+    }
+  ];
+
+  const defaultEntries = [
+    // Student Timetable (FA24-BCS-A) - Monday
+    {
+      upload_id: 'mock-upload-1',
+      timetable_type: 'student',
+      owner_label: 'FA24-BCS-A',
+      day: 'Monday',
+      slot_number: 1,
+      time_label: '8:30 - 10:00 AM',
+      subject: 'Programming Fundamentals',
+      room_code: 'CS-01',
+      instructor: 'Dr. Muhammad Nasir',
+      session_type: 'class',
+      span: 1
+    },
+    {
+      upload_id: 'mock-upload-1',
+      timetable_type: 'student',
+      owner_label: 'FA24-BCS-A',
+      day: 'Monday',
+      slot_number: 2,
+      time_label: '10:00 - 11:30 AM',
+      subject: 'Programming Fundamentals Lab',
+      room_code: 'CS-Lab-1',
+      instructor: 'Dr. Muhammad Nasir',
+      session_type: 'lab',
+      span: 2
+    },
+    // Tuesday
+    {
+      upload_id: 'mock-upload-1',
+      timetable_type: 'student',
+      owner_label: 'FA24-BCS-A',
+      day: 'Tuesday',
+      slot_number: 3,
+      time_label: '11:30 - 1:00 PM',
+      subject: 'Discrete Structures',
+      room_code: 'CS-02',
+      instructor: 'Engr. Waqas Ahmed',
+      session_type: 'class',
+      span: 1
+    },
+    // Wednesday
+    {
+      upload_id: 'mock-upload-1',
+      timetable_type: 'student',
+      owner_label: 'FA24-BCS-A',
+      day: 'Wednesday',
+      slot_number: 2,
+      time_label: '10:00 - 11:30 AM',
+      subject: 'Calculus & Geometry',
+      room_code: 'MTH-05',
+      instructor: 'Dr. Saima Jamil',
+      session_type: 'class',
+      span: 1
+    },
+    // Thursday
+    {
+      upload_id: 'mock-upload-1',
+      timetable_type: 'student',
+      owner_label: 'FA24-BCS-A',
+      day: 'Thursday',
+      slot_number: 4,
+      time_label: '1:30 - 3:00 PM',
+      subject: 'Object Oriented Programming',
+      room_code: 'CS-03',
+      instructor: 'Dr. Sadia Bashir',
+      session_type: 'class',
+      span: 1
+    },
+    // Friday
+    {
+      upload_id: 'mock-upload-1',
+      timetable_type: 'student',
+      owner_label: 'FA24-BCS-A',
+      day: 'Friday',
+      slot_number: 1,
+      time_label: '8:30 - 10:00 AM',
+      subject: 'Discrete Structures',
+      room_code: 'CS-02',
+      instructor: 'Engr. Waqas Ahmed',
+      session_type: 'class',
+      span: 1
+    },
+
+    // Teacher Timetable (Dr. Muhammad Nasir)
+    {
+      upload_id: 'mock-upload-2',
+      timetable_type: 'teacher',
+      owner_label: 'Dr. Muhammad Nasir',
+      day: 'Monday',
+      slot_number: 1,
+      time_label: '8:30 - 10:00 AM',
+      subject: 'Programming Fundamentals',
+      room_code: 'CS-01',
+      batch_section: 'FA24-BCS-A',
+      session_type: 'class',
+      span: 1
+    },
+    {
+      upload_id: 'mock-upload-2',
+      timetable_type: 'teacher',
+      owner_label: 'Dr. Muhammad Nasir',
+      day: 'Monday',
+      slot_number: 2,
+      time_label: '10:00 - 11:30 AM',
+      subject: 'Programming Fundamentals Lab',
+      room_code: 'CS-Lab-1',
+      batch_section: 'FA24-BCS-A',
+      session_type: 'lab',
+      span: 2
+    }
+  ];
+
+  const [timetableUploads, setTimetableUploads] = useState(() => load('ums_timetable_uploads_v1', defaultUploads));
+  const [timetableEntries, setTimetableEntries] = useState(() => load('ums_timetable_entries_v1', defaultEntries));
   const [sessions, setSessions] = useState(() => load('ums_sessions_v1', []));
   const [sessionAttendance, setSessionAttendance] = useState(() => load('ums_session_attendance_v1', []));
 
@@ -129,7 +261,8 @@ export function useUMSData() {
     save('ums_timetable_uploads_v1', timetableUploads); save('ums_timetable_entries_v1', timetableEntries);
     save('ums_sessions_v1', sessions); save('ums_session_attendance_v1', sessionAttendance);
     save('ums_fee_structures_v1', feeStructures);
-  }, [students, faculty, courses, departments, enrolments, results, finance, attendance, notices, exams, adminOverrides, assessments, marks, feePayments, timetableUploads, timetableEntries, sessions, sessionAttendance, feeStructures]);
+    save('ums_password_resets_v1', passwordResetRequests);
+  }, [students, faculty, courses, departments, enrolments, results, finance, attendance, notices, exams, adminOverrides, assessments, marks, feePayments, timetableUploads, timetableEntries, sessions, sessionAttendance, feeStructures, passwordResetRequests]);
 
   useEffect(() => {
     const fetchCoreRegistries = async () => {
@@ -142,7 +275,7 @@ export function useUMSData() {
           const [
             resStudents, resFaculty, resCourses, resDepts, resEnrol, 
             resRes, resFin, resPay, resUploads, resEntries, 
-            resSessions, resAttend, resFeeStructures, resAsst, resMarks
+            resSessions, resAttend, resFeeStructures, resAsst, resMarks, resResets
           ] = await Promise.all([
              safeQuery(supabase.from('students').select('*')),
              safeQuery(supabase.from('faculty').select('*')),
@@ -158,7 +291,8 @@ export function useUMSData() {
              safeQuery(supabase.from('session_attendance').select('*')),
              safeQuery(supabase.from('fee_structures').select('*')),
              safeQuery(supabase.from('assessments').select('*')),
-             safeQuery(supabase.from('marks').select('*'))
+             safeQuery(supabase.from('marks').select('*')),
+             safeQuery(supabase.from('password_reset_requests').select('*'))
           ]);
 
           if (resStudents.data?.length) {
@@ -294,6 +428,17 @@ export function useUMSData() {
             })));
           }
 
+          if (resResets?.data?.length) {
+            setPasswordResetRequests(resResets.data.map(r => ({
+              id: r.id,
+              regNo: r.reg_no,
+              name: r.name,
+              role: r.role,
+              status: r.status,
+              requestedAt: r.created_at || r.requested_at
+            })));
+          }
+
         } catch (e) {
           console.error("Supabase Data Sync Error:", e);
         } finally {
@@ -325,6 +470,7 @@ export function useUMSData() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => fetchCoreRegistries())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'session_attendance' }, () => fetchCoreRegistries())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_structures' }, () => fetchCoreRegistries())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'password_reset_requests' }, () => fetchCoreRegistries())
         .subscribe();
 
       return () => {
@@ -353,6 +499,7 @@ export function useUMSData() {
     sessions, setSessions,
     sessionAttendance, setSessionAttendance,
     feeStructures, setFeeStructures,
+    passwordResetRequests, setPasswordResetRequests,
     loading
   };
 }
