@@ -272,10 +272,12 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
         // Then delete the upload record
         await supabase.from('timetable_uploads').delete().eq('id', upload.id);
       } catch (err) {
-        console.error('Delete Error:', err);
-        return alert("Failed to delete record from database: " + err.message);
+        console.warn('DB Delete Warning (Continuing with local delete):', err);
+        alert("Warning: Could not delete from cloud database (it may be a local-only file or there is a network issue). Removing locally.");
       }
     }
+    
+    // Always clear from local state regardless of cloud success
     setUploads(prev => prev.filter(u => u.id !== upload.id));
     setEntries(prev => prev.filter(e => e.upload_id !== upload.id));
   };
