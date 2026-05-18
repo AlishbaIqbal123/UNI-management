@@ -6,11 +6,12 @@ import TimetableGrid from './TimetableGrid';
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departments, faculty, students }) => {
+const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departments, faculty, setFaculty, students, notify }) => {
   const [file, setFile] = useState(null);
   const [type, setType] = useState('student');
   const [semesterLabel, setSemesterLabel] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [uploadDept, setUploadDept] = useState('');
   
   const [selectedDept, setSelectedDept] = useState('');
@@ -257,29 +258,35 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
   const handleDelete = async (upload) => {
     if (!window.confirm("Permanent Action: This will remove the document and all associated grid entries. Continue?")) return;
     
+    setDeletingId(upload.id);
+    
+    // Optimistic local update
+    setUploads(prev => prev.filter(u => u.id !== upload.id));
+    setEntries(prev => prev.filter(e => e.upload_id !== upload.id));
+
     if (isDatabaseConnected()) {
       try {
-        // Delete from storage
         if (upload.storagePath) {
           try {
             await supabase.storage.from('timetables').remove([upload.storagePath]);
           } catch (storageErr) {
-            console.warn('Storage deletion failed (bucket likely missing):', storageErr);
+            console.warn('Storage deletion failed:', storageErr);
           }
         }
-        // Delete entries first to avoid foreign key constraint errors
-        await supabase.from('timetable_entries').delete().eq('upload_id', upload.id);
-        // Then delete the upload record
-        await supabase.from('timetable_uploads').delete().eq('id', upload.id);
+        
+        // Let ON DELETE CASCADE handle entries automatically, single transaction prevents UI blinking
+        const res = await supabase.from('timetable_uploads').delete().eq('id', upload.id);
+        
+        if (res.error) {
+            console.warn('DB Delete Warning:', res.error);
+        } else if (notify) {
+            notify("Timetable deleted successfully.");
+        }
       } catch (err) {
-        console.warn('DB Delete Warning (Continuing with local delete):', err);
-        alert("Warning: Could not delete from cloud database (it may be a local-only file or there is a network issue). Removing locally.");
+        console.warn('DB Delete Error:', err);
       }
     }
-    
-    // Always clear from local state regardless of cloud success
-    setUploads(prev => prev.filter(u => u.id !== upload.id));
-    setEntries(prev => prev.filter(e => e.upload_id !== upload.id));
+    setDeletingId(null);
   };
 
   return (
@@ -357,7 +364,14 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
                 <td><span style={{textTransform: 'capitalize'}}>{u.type}</span></td>
                 <td>{new Date(u.uploadedAt).toLocaleDateString()}</td>
                 <td className="text-right">
-                  <button className="btn-text-only" style={{color: 'var(--color-danger)'}} onClick={() => handleDelete(u)}>Delete</button>
+                  <button 
+                    className="btn-text-only" 
+                    style={{color: 'var(--color-danger)', opacity: deletingId === u.id ? 0.5 : 1}} 
+                    disabled={deletingId === u.id}
+                    onClick={() => handleDelete(u)}
+                  >
+                    {deletingId === u.id ? 'Deleting...' : 'Delete'}
+                  </button>
                 </td>
               </tr>
             ))}
