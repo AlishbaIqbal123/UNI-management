@@ -1,6 +1,7 @@
 import React from 'react';
 
 const TimetableGrid = ({ entries, title }) => {
+  const isFacultyView = title && title.toLowerCase().includes('faculty');
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const slots = [1, 2, 3, 4, 5, 6];
   const timeLabels = [
@@ -30,7 +31,8 @@ const TimetableGrid = ({ entries, title }) => {
       for (let s = 1; s <= slots.length; s++) {
         const entry = getEntry(day, s);
         if (entry) {
-          const detail = `${entry.subject} (Room: ${entry.room_code})${entry.instructor ? ' - ' + entry.instructor : ''}${entry.batch_section ? ' - ' + entry.batch_section : ''}`.trim();
+          const label = isFacultyView ? (entry.batch_section || entry.instructor) : (entry.instructor || entry.batch_section);
+          const detail = `${entry.subject} (Room: ${entry.room_code})${label ? ' - ' + label : ''}`.trim();
           row.push(detail);
         } else {
           // Check if covered by a span from previous slot
@@ -86,7 +88,7 @@ const TimetableGrid = ({ entries, title }) => {
               </div>
               <div style="opacity: 0.8; margin-bottom: 4px; color: #444;"><strong>Room:</strong> ${entry.room_code}</div>
               <div style="font-weight: 600; color: #666; font-size: 11px;">
-                ${entry.instructor || entry.batch_section || 'N/A'}
+                ${isFacultyView ? (entry.batch_section || entry.instructor || 'N/A') : (entry.instructor || entry.batch_section || 'N/A')}
               </div>
             </td>
           `;
@@ -318,7 +320,7 @@ const TimetableGrid = ({ entries, title }) => {
                             </div>
                             <div style={{opacity: 0.7, marginBottom: '2px'}}>Room: {entry.room_code}</div>
                             <div style={{fontSize: '11px', fontWeight: 600}}>
-                              {entry.instructor || entry.batch_section}
+                              {isFacultyView ? (entry.batch_section || entry.instructor) : (entry.instructor || entry.batch_section)}
                             </div>
                           </div>
                         ) : (

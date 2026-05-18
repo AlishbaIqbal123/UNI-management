@@ -1483,11 +1483,46 @@ function App() {
 
       case 'finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} feeStructures={feeStructures} setFeeStructures={setFeeStructures} />;
       
-      case 'faculty-timetable':
+      case 'faculty-timetable': {
         const teacherName = user.facultyName || user.name;
-        const myTeacherEntries = teacherName ? timetableEntries.filter(e => e.owner_label === teacherName || e.owner_label.includes(teacherName)) : [];
+        const cleanName = (n) => {
+          if (!n) return '';
+          return n
+            .toLowerCase()
+            .replace(/\b(dr|engr|prof|professor|associate|assistant|lecturer|mr|ms|mrs|phd)\b/g, '')
+            .replace(/[^a-z0-9]/g, '')
+            .trim();
+        };
+        const cleanedTeacherName = cleanName(teacherName);
+        const myTeacherEntries = cleanedTeacherName ? timetableEntries.map(e => {
+          // If it's a student class entry where the teacher is the instructor,
+          // map it with batch_section set to its owner_label (e.g. FA24-BCS-A) so it displays the class name.
+          const isStudentMatch = e.timetable_type === 'student' && e.instructor && (
+            cleanName(e.instructor).includes(cleanedTeacherName) || 
+            cleanedTeacherName.includes(cleanName(e.instructor))
+          );
+          if (isStudentMatch) {
+            return {
+              ...e,
+              batch_section: e.owner_label
+            };
+          }
+          return e;
+        }).filter(e => {
+          if (e.timetable_type === 'teacher' && e.owner_label) {
+            const cleanedOwner = cleanName(e.owner_label);
+            return cleanedOwner.includes(cleanedTeacherName) || cleanedTeacherName.includes(cleanedOwner);
+          }
+          if (e.timetable_type === 'student' && e.instructor) {
+            const cleanedInstr = cleanName(e.instructor);
+            return cleanedInstr.includes(cleanedTeacherName) || cleanedTeacherName.includes(cleanedInstr);
+          }
+          return false;
+        }) : [];
+
         if (timetableUploads.length === 0) return <div className="p-40 text-center"><h2 style={{opacity:0.5}}>Timetable not yet published by admin</h2></div>;
-        return <TimetableGrid entries={myTeacherEntries} title={`Faculty Timetable — ${user.facultyName}`} />;
+        return <TimetableGrid entries={myTeacherEntries} title={`Faculty Timetable — ${user.facultyName || user.name}`} />;
+      }
       
       case 'overrides': return <AdminOverrideManagement adminOverrides={adminOverrides} setAdminOverrides={setAdminOverrides} students={students} notify={notify} />;
 
