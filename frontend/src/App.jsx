@@ -406,7 +406,7 @@ function App() {
     } else if (inputID === 'FIN1' && inputPass === 'admin') {
         found = { id: 'FIN1', name: 'Finance Hub (Adnan)', role: ROLES.FINANCE };
     } else if (inputID === 'VHR-F-001' && inputPass === '123') {
-        found = { id: 'VHR-F-001', name: 'Dr. Muhammad Nasir', role: ROLES.FACULTY };
+        found = { id: 'VHR-F-001', name: 'Dr. Inayat-ur-Rehman', role: ROLES.FACULTY };
     } else if (inputID === 'S001' && inputPass === '123') {
         const registryMatch = students.find(s => s.id === 'S001' || s.name === 'Amna Pervez');
         found = registryMatch ? { ...registryMatch, role: ROLES.STUDENT } : { id: 'S001', name: 'Amna Pervez', role: ROLES.STUDENT, regNumber: 'FA24-BCS-055' };
@@ -481,19 +481,32 @@ function App() {
 
   const handleRegister = async () => {
     const isFaculty = authData.program === 'Faculty Applicant';
-    const isCS = authData.program?.includes('Computer') || authData.program?.includes('Software');
     const role = isFaculty ? ROLES.FACULTY : ROLES.STUDENT;
     
     const newId = isFaculty 
       ? `F-${String(Math.floor(Math.random() * 900) + 100)}` 
-      : `FA26-${isCS ? 'BCS' : 'BBA'}-${String(Math.floor(Math.random() * 900) + 100).padStart(3, '0')}`;
+      : (authData.regNumber || `FA26-BCS-${String(Math.floor(Math.random() * 900) + 100).padStart(3, '0')}`);
       
-    const newUser = { id: newId, ...authData, batch: isFaculty ? 'Staff' : 'Fall 2026', password: authData.password || '123' };
+    const newUser = { 
+      id: newId, 
+      ...authData, 
+      regNumber: isFaculty ? undefined : newId,
+      batch: isFaculty ? 'Staff' : (authData.batch || 'Fall 2026'), 
+      password: authData.password || '123' 
+    };
     
     if (isFaculty) {
         setFaculty(prev => [...prev, { ...newUser, facultyName: newUser.name, designation: 'Lecturer (Probation)' }]);
     } else {
         setStudents(p => [...p, newUser]);
+        setFinance(prev => [...prev, {
+          recordID: Date.now(),
+          studentID: newId,
+          amountPaid: 0,
+          dueAmount: 120000,
+          totalFee: 120000,
+          semester: newUser.batch
+        }]);
     }
     
     const sessionUser = { ...newUser, role };
@@ -508,7 +521,7 @@ function App() {
     setIsModalOpen(true);
     switchTab('dashboard');
     setAppView('portal');
-    notify(`Admission Successfully Processed! Candidate ID: ${newId}`);
+    notify(`Sign Up Successful! Institutional ID: ${newId}`);
   };
 
   if (appView === 'landing') return (

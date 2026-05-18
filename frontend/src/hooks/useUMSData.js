@@ -30,57 +30,70 @@ const uniqueDepartments = (depts) => {
 
 export function useUMSData() {
   const [students, setStudents] = useState(() => load('ums_students_v5', [
-    { id: 'S001', dbID: 'a0000000-0000-0000-0000-000000000001', name: 'Amna Pervez', regNumber: 'FA24-BCS-055', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'amna@cui.edu.pk', phone: '+92 321 4567890' },
-    { id: 'S002', dbID: 'a0000000-0000-0000-0000-000000000002', name: 'Maham Shaukat', regNumber: 'SP25-BCS-012', batch: 'Spring 2025', section: 'A', program: 'BS Computer Science', password: '123', email: 'maham@cui.edu.pk', phone: '+92 333 9876543' },
-    { id: 'S003', dbID: 'a0000000-0000-0000-0000-000000000003', name: 'Ali Hassan', regNumber: 'FA24-BCS-003', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'ali@cui.edu.pk', phone: '+92 300 1122334' },
-    { id: 'S004', dbID: 'a0000000-0000-0000-0000-000000000004', name: 'Ayesha Malik', regNumber: 'SP26-BSE-045', batch: 'Spring 2026', section: 'A', program: 'BS Software Engineering', password: '123', email: 'ayesha@cui.edu.pk', phone: '+92 315 5566778' },
-    { id: 'S005', dbID: 'a0000000-0000-0000-0000-000000000005', name: 'Kamran Ahmed', regNumber: 'FA24-BCS-005', batch: 'Fall 2024', section: 'B', program: 'BS Computer Science', password: '123', email: 'kamran@cui.edu.pk', phone: '+92 345 8899001' },
-    { id: 'S006', dbID: 'a0000000-0000-0000-0000-000000000006', name: 'Sana Khan', regNumber: 'SP26-BSE-001', batch: 'Spring 2026', section: 'B', program: 'BS Software Engineering', password: '123', email: 'sana@cui.edu.pk', phone: '+92 322 3344556' },
-    { id: 'S007', dbID: 'a0000000-0000-0000-0000-000000000007', name: 'Zainab Ahmed', regNumber: 'FA24-BCS-007', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'zainab@cui.edu.pk', phone: '+92 321 4455667' },
-    { id: 'S008', dbID: 'a0000000-0000-0000-0000-000000000008', name: 'Hamza Malik', regNumber: 'FA24-BSE-008', batch: 'Fall 2024', section: 'B', program: 'BS Software Engineering', password: '123', email: 'hamza@cui.edu.pk', phone: '+92 333 7788990' },
-    { id: 'S009', dbID: 'a0000000-0000-0000-0000-000000000009', name: 'Ayesha Khan', regNumber: 'FA24-BSE-009', batch: 'Fall 2024', section: 'A', program: 'BS Software Engineering', password: '123', email: 'akhan@cui.edu.pk', phone: '+92 300 0011223' },
-    { id: 'S010', dbID: 'a0000000-0000-0000-0000-000000000010', name: 'Muhammad Ali', regNumber: 'FA24-BCS-010', batch: 'Fall 2024', section: 'B', program: 'BS Computer Science', password: '123', email: 'ali@cui.edu.pk', phone: '+92 315 3344557' }
+    { id: 'FA24-BCS-055', dbID: 'a1', name: 'Amna Pervez', regNumber: 'FA24-BCS-055', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'amna@cui.edu.pk', phone: '+92 321 4567890' },
+    { id: 'SP25-BCS-012', dbID: 'a2', name: 'Maham Shaukat', regNumber: 'SP25-BCS-012', batch: 'Spring 2025', section: 'A', program: 'BS Computer Science', password: '123', email: 'maham@cui.edu.pk', phone: '+92 333 9876543' },
+    { id: 'FA24-BCS-003', dbID: 'a3', name: 'Ali Hassan', regNumber: 'FA24-BCS-003', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'ali@cui.edu.pk', phone: '+92 300 1122334' },
+    { id: 'SP26-BSE-045', dbID: 'a4', name: 'Ayesha Malik', regNumber: 'SP26-BSE-045', batch: 'Spring 2026', section: 'A', program: 'BS Software Engineering', password: '123', email: 'ayesha@cui.edu.pk', phone: '+92 315 5566778' },
+    { id: 'FA24-BCS-005', dbID: 'a5', name: 'Kamran Ahmed', regNumber: 'FA24-BCS-005', batch: 'Fall 2024', section: 'B', program: 'BS Computer Science', password: '123', email: 'kamran@cui.edu.pk', phone: '+92 345 8899001' },
+    { id: 'SP26-BSE-001', dbID: 'a6', name: 'Sana Khan', regNumber: 'SP26-BSE-001', batch: 'Spring 2026', section: 'B', program: 'BS Software Engineering', password: '123', email: 'sana@cui.edu.pk', phone: '+92 322 3344556' },
+    { id: 'FA24-BCS-007', dbID: 'a7', name: 'Zainab Ahmed', regNumber: 'FA24-BCS-007', batch: 'Fall 2024', section: 'A', program: 'BS Computer Science', password: '123', email: 'zainab@cui.edu.pk', phone: '+92 321 4455667' },
+    { id: 'FA24-BSE-008', dbID: 'a8', name: 'Hamza Malik', regNumber: 'FA24-BSE-008', batch: 'Fall 2024', section: 'B', program: 'BS Software Engineering', password: '123', email: 'hamza@cui.edu.pk', phone: '+92 333 7788990' },
+    { id: 'FA24-BSE-009', dbID: 'a9', name: 'Ayesha Khan', regNumber: 'FA24-BSE-009', batch: 'Fall 2024', section: 'A', program: 'BS Software Engineering', password: '123', email: 'akhan@cui.edu.pk', phone: '+92 300 0011223' },
+    { id: 'FA24-BCS-010', dbID: 'a10', name: 'Muhammad Ali', regNumber: 'FA24-BCS-010', batch: 'Fall 2024', section: 'B', program: 'BS Computer Science', password: '123', email: 'ali@cui.edu.pk', phone: '+92 315 3344557' }
   ]));
 
 
   const [faculty, setFaculty] = useState(() => load('ums_faculty_v4', [
-    { id: 'VHR-F-001', dbID: 'f1', facultyName: 'Dr. Muhammad Nasir', designation: 'Assistant Professor', password: '123', email: 'nasir@cui.edu.pk', phone: '+92 312 0001112' },
-    { id: 'VHR-F-002', dbID: 'f2', facultyName: 'Dr. Saima Jamil', designation: 'Assistant Professor', password: '123', email: 'saima@cui.edu.pk', phone: '+92 313 2223334' },
-    { id: 'VHR-F-003', dbID: 'f4', facultyName: 'Dr. Sadia Bashir', designation: 'Lecturer', password: '123', email: 'sadia@cui.edu.pk', phone: '+92 331 4455667' },
-    { id: 'VHR-F-004', dbID: 'f5', facultyName: 'Engr. Waqas Ahmed', designation: 'Lecturer', password: '123', email: 'waqas@cui.edu.pk', phone: '+92 332 7788990' },
-    { id: 'FIN1', dbID: 'f3', facultyName: 'Adnan Ahmed', role: 'Finance', password: 'admin', designation: 'Finance Officer', email: 'finance@cui.edu.pk', phone: '+92 314 4445556' }
+    { id: 'VHR-F-001', dbID: 'f1', facultyName: 'Dr. Inayat-ur-Rehman', designation: 'Associate Professor', password: '123', email: 'irehman@cui.edu.pk', phone: '+92 312 0001112' },
+    { id: 'VHR-F-002', dbID: 'f2', facultyName: 'Dr. Rashid Jahangir', designation: 'Assistant Professor', password: '123', email: 'rashid@cui.edu.pk', phone: '+92 313 2223334' },
+    { id: 'VHR-F-003', dbID: 'f3', facultyName: 'Dr. Muzhar Javed', designation: 'Assistant Professor', password: '123', email: 'muzhar@cui.edu.pk', phone: '+92 333 4455667' },
+    { id: 'VHR-F-004', dbID: 'f4', facultyName: 'Dr. Orangzab', designation: 'Assistant Professor', password: '123', email: 'orangzab@cui.edu.pk', phone: '+92 332 7788990' },
+    { id: 'VHR-F-005', dbID: 'f5', facultyName: 'Dr. Tahira Nazir', designation: 'Assistant Professor', password: '123', email: 'tnazir@cui.edu.pk', phone: '+92 322 1122334' },
+    { id: 'VHR-F-006', dbID: 'f6', facultyName: 'Dr. Muhammad Shahid', designation: 'Associate Professor', password: '123', email: 'mshahid@cui.edu.pk', phone: '+92 300 5566778' },
+    { id: 'VHR-F-007', dbID: 'f7', facultyName: 'Dr. Muhammad Imran', designation: 'Associate Professor', password: '123', email: 'mimran@cui.edu.pk', phone: '+92 345 8899001' },
+    { id: 'VHR-F-008', dbID: 'f8', facultyName: 'Dr. Saeed Ahmad Qaisrani', designation: 'Associate Professor', password: '123', email: 'saeed@cui.edu.pk', phone: '+92 321 4455667' },
+    { id: 'VHR-F-009', dbID: 'f9', facultyName: 'Dr. Muhammad Zahid Abbas', designation: 'Associate Professor', password: '123', email: 'mzahid@cui.edu.pk', phone: '+92 315 3344557' },
+    { id: 'VHR-F-010', dbID: 'f10', facultyName: 'Dr. Sadia Bashir', designation: 'Lecturer', password: '123', email: 'sadia@cui.edu.pk', phone: '+92 331 4455668' },
+    { id: 'FIN1', dbID: 'f11', facultyName: 'Adnan Ahmed', role: 'Finance', password: 'admin', designation: 'Finance Lead', email: 'finance@cui.edu.pk', phone: '+92 314 4445556' }
   ]));
 
   const [courses, setCourses] = useState(() => load('ums_courses_v4', [
     { courseID: 'CSC101', courseName: 'Programming Fundamentals', credits: 4, assignedFacultyID: 'VHR-F-001', prerequisites: ['None'] },
-    { courseID: 'MTH101', courseName: 'Calculus & Analytical Geometry', credits: 3, assignedFacultyID: 'VHR-F-002', prerequisites: ['MTH100'] },
-    { courseID: 'CSC112', courseName: 'ICT', credits: 3, assignedFacultyID: 'VHR-F-001', prerequisites: ['None'] },
-    { courseID: 'CSC241', courseName: 'Object Oriented Programming', credits: 4, assignedFacultyID: 'VHR-F-003', prerequisites: ['CSC101'] },
-    { courseID: 'CSC211', courseName: 'Discrete Structures', credits: 3, assignedFacultyID: 'VHR-F-004', prerequisites: ['MTH101'] }
+    { courseID: 'MTH101', courseName: 'Calculus & Analytical Geometry', credits: 3, assignedFacultyID: 'VHR-F-009', prerequisites: ['MTH100'] },
+    { courseID: 'CSC112', courseName: 'ICT', credits: 3, assignedFacultyID: 'VHR-F-002', prerequisites: ['None'] },
+    { courseID: 'CSC241', courseName: 'Object Oriented Programming', credits: 4, assignedFacultyID: 'VHR-F-004', prerequisites: ['CSC101'] },
+    { courseID: 'CSC211', courseName: 'Discrete Structures', credits: 3, assignedFacultyID: 'VHR-F-005', prerequisites: ['MTH101'] },
+    { courseID: 'ENV101', courseName: 'Introduction to Environmental Sciences', credits: 3, assignedFacultyID: 'VHR-F-006', prerequisites: ['None'] },
+    { courseID: 'MGT101', courseName: 'Principles of Management', credits: 3, assignedFacultyID: 'VHR-F-003', prerequisites: ['None'] },
+    { courseID: 'BIO101', courseName: 'Basic Biology', credits: 3, assignedFacultyID: 'VHR-F-008', prerequisites: ['None'] }
   ]));
 
   const [departments, setDepartments] = useState(() => uniqueDepartments(load('ums_depts_v4', [
-    { departmentID: 'CS', departmentName: 'Computing', headOfDepartment: 'Dr. Muhammad Nasir' },
-    { departmentID: 'BBA', departmentName: 'Management Sciences', headOfDepartment: 'Dr. Saima Jamil' }
+    { departmentID: 'CS', departmentName: 'Department of Computer Science', headOfDepartment: 'Dr. Inayat-ur-Rehman' },
+    { departmentID: 'MS', departmentName: 'Department of Management Sciences', headOfDepartment: 'Dr. Muzhar Javed' },
+    { departmentID: 'ES', departmentName: 'Department of Environmental Sciences', headOfDepartment: 'Dr. Muhammad Shahid' },
+    { departmentID: 'BT', departmentName: 'Department of Biotechnology', headOfDepartment: 'Dr. Muhammad Ibrahim Abdullah' },
+    { departmentID: 'MTH', departmentName: 'Department of Mathematics', headOfDepartment: 'Dr. Muhammad Zahid Abbas' },
+    { departmentID: 'HUM', departmentName: 'Department of Humanities', headOfDepartment: 'Dr. Sadia Bashir' }
   ])));
 
   const [enrolments, setEnrolments] = useState(() => load('ums_enrolments_v4', [
-    { registrationID: 101, studentID: 'S001', courseID: 'CSC101', status: 'Confirmed' },
-    { registrationID: 102, studentID: 'S002', courseID: 'CSC101', status: 'Confirmed' },
-    { registrationID: 103, studentID: 'S007', courseID: 'CSC101', status: 'Confirmed' },
-    { registrationID: 104, studentID: 'S008', courseID: 'CSC101', status: 'Confirmed' },
-    { registrationID: 105, studentID: 'S009', courseID: 'CSC101', status: 'Confirmed' },
-    { registrationID: 106, studentID: 'S010', courseID: 'CSC101', status: 'Confirmed' },
-    { registrationID: 107, studentID: 'S003', courseID: 'CSC211', status: 'Confirmed' },
-    { registrationID: 108, studentID: 'S004', courseID: 'CSC241', status: 'Confirmed' }
+    { registrationID: 101, studentID: 'FA24-BCS-055', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 102, studentID: 'SP25-BCS-012', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 103, studentID: 'FA24-BCS-007', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 104, studentID: 'FA24-BSE-008', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 105, studentID: 'FA24-BSE-009', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 106, studentID: 'FA24-BCS-010', courseID: 'CSC101', status: 'Confirmed' },
+    { registrationID: 107, studentID: 'FA24-BCS-003', courseID: 'CSC211', status: 'Confirmed' },
+    { registrationID: 108, studentID: 'SP26-BSE-045', courseID: 'CSC241', status: 'Confirmed' }
   ]));
 
   const [results, setResults] = useState(() => load('ums_results_v4', []));
   const [finance, setFinance] = useState(() => load('ums_finance_v4', [
-     { recordID: 1, studentID: 'S001', amountPaid: 65000, dueAmount: 0 },
-     { recordID: 2, studentID: 'S002', amountPaid: 45000, dueAmount: 0 },
-     { recordID: 3, studentID: 'S003', amountPaid: 0, dueAmount: 45000 },
-     { recordID: 4, studentID: 'S010', amountPaid: 45000, dueAmount: 0 }
+     { recordID: 1, studentID: 'FA24-BCS-055', amountPaid: 65000, dueAmount: 0, totalFee: 120000, semester: 'Fall 2024' },
+     { recordID: 2, studentID: 'SP25-BCS-012', amountPaid: 45000, dueAmount: 0, totalFee: 120000, semester: 'Spring 2025' },
+     { recordID: 3, studentID: 'FA24-BCS-003', amountPaid: 0, dueAmount: 45000, totalFee: 120000, semester: 'Fall 2024' },
+     { recordID: 4, studentID: 'FA24-BCS-010', amountPaid: 45000, dueAmount: 0, totalFee: 120000, semester: 'Fall 2024' }
   ]));
   const [feeStructures, setFeeStructures] = useState(() => load('ums_fee_structures_v1', [
      { id: 'fs1', departmentID: 'CS', semester: 'Fall 2024', totalFee: 120000 },
@@ -95,11 +108,16 @@ export function useUMSData() {
   useEffect(() => {
     let changed = false;
     const cleanStudents = students.map(s => {
+      let updated = { ...s };
       if (!s.regNumber) {
         changed = true;
-        return { ...s, regNumber: (s.university_id && s.university_id.length < 20) ? s.university_id : `FA24-BCS-${s.id.replace('S', '')}` };
+        updated.regNumber = s.id;
       }
-      return s;
+      if (s.id && !s.id.includes('-')) {
+        changed = true;
+        updated.id = s.regNumber || `FA24-BCS-055`;
+      }
+      return updated;
     });
     if (changed) setStudents(cleanStudents);
   }, [students]);

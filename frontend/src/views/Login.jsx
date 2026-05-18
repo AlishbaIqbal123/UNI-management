@@ -3,6 +3,54 @@ import React from 'react';
 const ROLES = { ADMIN: 'Admin', STUDENT: 'Student', FACULTY: 'Faculty', FINANCE: 'Finance' };
 
 const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authData, setAuthData, regSubStep, setRegSubStep, handleRegister, theme, toggleTheme, onInitiateRecovery }) => {
+  const handleRegNumberChange = (val) => {
+    const formatted = val.toUpperCase();
+    const match = formatted.match(/^(FA|SP)(\d{2})-([A-Z]{3,4})-\d{3}$/);
+    let parsedProgram = '';
+    let parsedBatch = '';
+    if (match) {
+      const term = match[1] === 'FA' ? 'Fall' : 'Spring';
+      const year = '20' + match[2];
+      parsedBatch = `${term} ${year}`;
+      
+      const progCode = match[3];
+      if (progCode === 'BCS') parsedProgram = 'BS Computer Science';
+      else if (progCode === 'BSE') parsedProgram = 'BS Software Engineering';
+      else if (progCode === 'BBA') parsedProgram = 'BS Business Administration';
+      else parsedProgram = `BS ${progCode}`;
+    }
+    
+    setAuthData({
+      ...authData,
+      regNumber: formatted,
+      program: parsedProgram || authData.program,
+      batch: parsedBatch || authData.batch
+    });
+  };
+
+  const validateStep1 = () => {
+    if (!authData.name) {
+      alert("Please enter your Full Name.");
+      return;
+    }
+    if (!authData.email) {
+      alert("Please enter your Official Email Address.");
+      return;
+    }
+    if (!authData.regNumber) {
+      alert("Please enter your Registration Number.");
+      return;
+    }
+    
+    const regPattern = /^(FA|SP)\d{2}-[A-Z]{3,4}-\d{3}$/i;
+    if (!regPattern.test(authData.regNumber)) {
+      alert("Invalid Registration Number format. Must match COMSATS format: e.g. FA20-BCS-001 (SessionYear-Program-RollNo)");
+      return;
+    }
+    
+    setRegSubStep(2);
+  };
+
   const isInvertedBtn = {
     background: 'var(--color-ink)',
     color: 'var(--color-bg)',
@@ -97,13 +145,13 @@ const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authDat
                 <p style={{ margin: '0 0 8px 0', fontWeight: 700, opacity: 0.5 }}>DEMO ACCESS KEYS</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <span>Admin: ADMIN/admin</span>
-                  <span>Student: S001/123</span>
+                  <span>Student: FA24-BCS-055/123</span>
                   <span>Faculty: VHR-F-001/123</span>
                   <span>Finance: FIN1/admin</span>
                 </div>
               </div>
               <p className="mt-24" style={{ textAlign: 'center', fontSize: '14px' }}>
-                New candidate? <span style={{ color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 700 }} onClick={() => setStep('register')}>Apply for Admission</span>
+                Are you a student? <span style={{ color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 700 }} onClick={() => setStep('register')}>Sign Up Now</span>
               </p>
             </div>
           )}
@@ -208,7 +256,7 @@ const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authDat
           {loginStep === 'register' && (
             <div className="fade-in">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ margin: 0 }}>Admission {regSubStep}/4</h3>
+                <h3 style={{ margin: 0 }}>Student Sign Up {regSubStep}/4</h3>
                 <span style={{ fontSize: '12px', opacity: 0.5 }}>Step {regSubStep} of 4</span>
               </div>
               
@@ -219,19 +267,31 @@ const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authDat
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {regSubStep === 1 && (
                   <>
-                    <input placeholder="Full Candidate Name" value={authData.name} onChange={e => setAuthData({...authData, name: e.target.value})} />
+                    <input placeholder="Full Name" value={authData.name} onChange={e => setAuthData({...authData, name: e.target.value})} />
                     <input placeholder="Official Email Address" value={authData.email} onChange={e => setAuthData({...authData, email: e.target.value})} />
-                    <button style={isInvertedBtn} onClick={() => setRegSubStep(2)}>Continue</button>
+                    <input placeholder="Registration Number (e.g. FA20-BCS-001)" value={authData.regNumber || ''} onChange={e => handleRegNumberChange(e.target.value)} />
+                    <button style={isInvertedBtn} onClick={validateStep1}>Continue</button>
                   </>
                 )}
                 {regSubStep === 2 && (
                   <>
-                    <select value={authData.program || ''} onChange={e => setAuthData({...authData, program: e.target.value})}>
-                      <option value="" disabled>Select Academic Program</option>
-                      <option value="BS Computer Science">BS Computer Science</option>
-                      <option value="BS Software Engineering">BS Software Engineering</option>
-                      <option value="BS Business Administration">BS Business Administration</option>
-                    </select>
+                    <div style={{ 
+                      padding: '16px', 
+                      background: 'rgba(74, 103, 133, 0.1)', 
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius)',
+                      fontSize: '13px',
+                      textAlign: 'left'
+                    }}>
+                      <div style={{ marginBottom: '12px' }}>
+                        <span style={{ fontWeight: 700, opacity: 0.6, fontSize: '10px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>Parsed Academic Program</span>
+                        <span style={{ fontWeight: 700, color: 'var(--color-accent)' }}>{authData.program || 'Pending Detection'}</span>
+                      </div>
+                      <div>
+                        <span style={{ fontWeight: 700, opacity: 0.6, fontSize: '10px', display: 'block', textTransform: 'uppercase', marginBottom: '2px' }}>Parsed Batch / Session</span>
+                        <span style={{ fontWeight: 700, color: 'var(--color-ink)' }}>{authData.batch || 'Pending Detection'}</span>
+                      </div>
+                    </div>
                     <input placeholder="Previous Institute Name" value={authData.instName} onChange={e => setAuthData({...authData, instName: e.target.value})} />
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <button className="btn-text-only" style={{ flex: 1 }} onClick={() => setRegSubStep(1)}>Back</button>
@@ -258,12 +318,12 @@ const Login = ({ onLogin, loginError, setLoginError, setStep, loginStep, authDat
                     <input type="password" placeholder="Create Account Password" value={authData.password} onChange={e => setAuthData({...authData, password: e.target.value})} />
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <button className="btn-text-only" style={{ flex: 1 }} onClick={() => setRegSubStep(3)}>Back</button>
-                      <button style={{ ...isInvertedBtn, flex: 2, marginTop: 0 }} onClick={handleRegister}>Finalize Application</button>
+                      <button style={{ ...isInvertedBtn, flex: 2, marginTop: 0 }} onClick={handleRegister}>Finalize Account</button>
                     </div>
                   </>
                 )}
               </div>
-              <button className="btn-text-only" style={{ width: '100%', marginTop: '16px' }} onClick={() => setStep('choice')}>Abort Application</button>
+              <button className="btn-text-only" style={{ width: '100%', marginTop: '16px' }} onClick={() => setStep('choice')}>Abort Sign Up</button>
             </div>
           )}
 
