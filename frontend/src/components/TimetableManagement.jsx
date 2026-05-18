@@ -267,7 +267,9 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
             console.warn('Storage deletion failed (bucket likely missing):', storageErr);
           }
         }
-        // Delete from DB (entries will cascade delete if foreign key set to CASCADE)
+        // Delete entries first to avoid foreign key constraint errors
+        await supabase.from('timetable_entries').delete().eq('upload_id', upload.id);
+        // Then delete the upload record
         await supabase.from('timetable_uploads').delete().eq('id', upload.id);
       } catch (err) {
         console.error('Delete Error:', err);
