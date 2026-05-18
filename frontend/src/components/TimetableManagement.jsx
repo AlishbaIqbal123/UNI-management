@@ -11,6 +11,7 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
   const [type, setType] = useState('student');
   const [semesterLabel, setSemesterLabel] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadDept, setUploadDept] = useState('');
   
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedTeacher, setSelectedTeacher] = useState('');
@@ -86,11 +87,12 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
         setUploads(prev => [...prev, { id: uploadId, fileURL: fileUrl, type, semesterLabel, uploadedAt: new Date() }]);
       }
 
-      // Parse PDF
-      await parsePDF(file, uploadId, type);
+      // Parse PDF and sync faculty
+      await parsePDF(file, uploadId, type, uploadDept);
       alert('Timetable uploaded and parsed successfully');
       setFile(null);
       setSemesterLabel('');
+      setUploadDept('');
     } catch (error) {
       console.error('Upload Error:', error);
       alert('Error uploading/parsing timetable: ' + error.message);
@@ -99,7 +101,7 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
     }
   };
 
-  const parsePDF = async (file, uploadId, globalType) => {
+  const parsePDF = async (file, uploadId, globalType, selectedUploadDept) => {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjs.getDocument(arrayBuffer).promise;
     const allEntries = [];
@@ -206,6 +208,38 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
       await supabase.from('timetable_entries').insert(allEntries);
     }
     setEntries(prev => [...prev, ...allEntries]);
+
+    // Auto-sync missing faculty members if it's a teacher timetable and a department was selected
+    if (globalType === 'teacher' && selectedUploadDept) {
+      const uniqueTeacherNames = [...new Set(allEntries.map(e => e.owner_label))].filter(Boolean);
+      const newFacultyMembers = [];
+      
+      uniqueTeacherNames.forEach(teacherName => {
+        const cleanedExtractedName = cleanName(teacherName);
+        const exists = faculty.some(f => cleanName(f.facultyName) === cleanedExtractedName || cleanedExtractedName.includes(cleanName(f.facultyName)));
+        
+        if (!exists) {
+          const newFaculty = {
+            id: `AUTO-F-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            dbID: `auto-f-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            facultyName: teacherName,
+            designation: 'Lecturer', // Default assumption
+            department: selectedUploadDept,
+            password: '123',
+            email: `${teacherName.replace(/\s+/g, '.').toLowerCase()}@cuivehari.edu.pk`,
+            phone: '+92 000 0000000'
+          };
+          newFacultyMembers.push(newFaculty);
+        }
+      });
+
+      if (newFacultyMembers.length > 0) {
+        if (setFaculty) {
+          setFaculty(prev => [...prev, ...newFacultyMembers]);
+        }
+        console.log(`Auto-added ${newFacultyMembers.length} missing faculty members for department ${selectedUploadDept}`);
+      }
+    }
   };
 
   const getTimeLabel = (slot) => {
@@ -255,22 +289,32 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
 
       <div className="card mb-32">
         <h2>Upload New Timetable</h2>
-        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '16px', alignItems: 'end'}}>
+        <div style={{display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap'}}>
           <div>
             <label style={{fontSize: '12px', display: 'block', marginBottom: '4px'}}>PDF File</label>
-            <input type="file" accept=".pdf" onChange={e => setFile(e.target.files[0])} />
+            <input type="file" accept=".pdf" onChange={e => setFile(e.target.files[0])} className="form-input-premium" style={{padding: '5px 8px'}} />
           </div>
           <div>
             <label style={{fontSize: '12px', display: 'block', marginBottom: '4px'}}>Timetable Type</label>
-            <select value={type} onChange={e => setType(e.target.value)}>
+            <select value={type} onChange={e => setType(e.target.value)} className="form-input-premium" style={{minWidth: '150px'}}>
               <option value="student">Student Timetables</option>
               <option value="teacher">Teacher Timetables</option>
             </select>
           </div>
+          {type === 'teacher' && (
+            <div>
+              <label style={{fontSize: '12px', display: 'block', marginBottom: '4px'}}>Department</label>
+              <select value={uploadDept} onChange={e => setUploadDept(e.target.value)} className="form-input-premium" style={{minWidth: '180px'}}>
+                <option value="">Select Department...</option>
+                {departments && departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label style={{fontSize: '12px', display: 'block', marginBottom: '4px'}}>Semester Label</label>
             <input 
               type="text" 
+              className="form-input-premium"
               placeholder="e.g. Spring 2026" 
               value={semesterLabel} 
               onChange={e => setSemesterLabel(e.target.value)} 

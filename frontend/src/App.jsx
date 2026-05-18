@@ -1261,7 +1261,7 @@ function App() {
         return <AdminOverrideManagement students={students} adminOverrides={adminOverrides} setAdminOverrides={setAdminOverrides} notify={notify} />;
       
       case 'timetable':
-        return <TimetableManagement uploads={timetableUploads} setUploads={setTimetableUploads} entries={timetableEntries} setEntries={setTimetableEntries} departments={departments} faculty={faculty} students={students} />;
+        return <TimetableManagement uploads={timetableUploads} setUploads={setTimetableUploads} entries={timetableEntries} setEntries={setTimetableEntries} departments={departments} faculty={faculty} setFaculty={setFaculty} students={students} />;
 
       case 'registration': 
         return <CourseRegistration courses={courses} enrolments={enrolments} setEnrolments={setEnrolments} user={user} results={results} notify={notify} finance={finance} adminOverrides={adminOverrides} feePayments={feePayments} />;
