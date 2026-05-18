@@ -1,15 +1,49 @@
 import React, { useState } from 'react';
 import * as pdfjs from 'pdfjs-dist';
 import { supabase, isDatabaseConnected } from '../lib/supabase';
+import TimetableGrid from './TimetableGrid';
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-const TimetableManagement = ({ uploads, setUploads, setEntries }) => {
+const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departments, faculty, students }) => {
   const [file, setFile] = useState(null);
   const [type, setType] = useState('student');
   const [semesterLabel, setSemesterLabel] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  
+  const [selectedDept, setSelectedDept] = useState('');
+  const [selectedTeacher, setSelectedTeacher] = useState('');
+
+  const cleanName = (n) => {
+    if (!n) return '';
+    return n.toLowerCase()
+      .replace(/\b(dr|engr|prof|professor|associate|assistant|lecturer|mr|ms|mrs|phd)\b/g, '')
+      .replace(/[^a-z0-9]/g, '').trim();
+  };
+
+  const getTeacherEntries = (teacherName) => {
+    if (!teacherName || !entries) return [];
+    const cleanedTeacherName = cleanName(teacherName);
+    return entries.map(e => {
+      const isStudentMatch = e.timetable_type === 'student' && e.instructor && (
+        cleanName(e.instructor).includes(cleanedTeacherName) || 
+        cleanedTeacherName.includes(cleanName(e.instructor))
+      );
+      if (isStudentMatch) return { ...e, batch_section: e.owner_label };
+      return e;
+    }).filter(e => {
+      if (e.timetable_type === 'teacher' && e.owner_label) {
+        const cleanedOwner = cleanName(e.owner_label);
+        return cleanedOwner.includes(cleanedTeacherName) || cleanedTeacherName.includes(cleanedOwner);
+      }
+      if (e.timetable_type === 'student' && e.instructor) {
+        const cleanedInstr = cleanName(e.instructor);
+        return cleanedInstr.includes(cleanedTeacherName) || cleanedTeacherName.includes(cleanedInstr);
+      }
+      return false;
+    });
+  };
 
   const handleUpload = async () => {
     if (!file || !semesterLabel) return alert('Please select a file and enter semester label');
@@ -285,6 +319,40 @@ const TimetableManagement = ({ uploads, setUploads, setEntries }) => {
           </tbody>
         </table>
       </div>
+      </div>
+
+      <div className="card mt-32 mb-32">
+        <h2 style={{marginBottom: '20px'}}>Department Faculty Timetables</h2>
+        <div style={{display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap'}}>
+          <div>
+            <label style={{fontSize: '12px', display: 'block', marginBottom: '4px'}}>Select Department</label>
+            <select className="form-input-premium" value={selectedDept} onChange={e => { setSelectedDept(e.target.value); setSelectedTeacher(''); }} style={{minWidth: '220px', margin: 0}}>
+              <option value="">-- Choose Department --</option>
+              {departments && departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+          {selectedDept && (
+            <div>
+              <label style={{fontSize: '12px', display: 'block', marginBottom: '4px'}}>Select Faculty Member</label>
+              <select className="form-input-premium" value={selectedTeacher} onChange={e => setSelectedTeacher(e.target.value)} style={{minWidth: '250px', margin: 0}}>
+                <option value="">-- Choose Instructor --</option>
+                {faculty && faculty.filter(f => f.department === selectedDept).map(f => (
+                  <option key={f.id} value={f.facultyName}>{f.facultyName}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        {selectedTeacher ? (
+          <TimetableGrid 
+            entries={getTeacherEntries(selectedTeacher)} 
+            title={`Faculty Timetable — ${selectedTeacher}`} 
+          />
+        ) : (
+          <div className="empty-state" style={{padding: '40px'}}>
+             <p style={{opacity: 0.6}}>Select a department and an instructor to view their parsed timetable slots.</p>
+          </div>
+        )}
       </div>
     </div>
   );

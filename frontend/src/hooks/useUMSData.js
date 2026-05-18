@@ -75,6 +75,8 @@ export function useUMSData() {
     { id: 'VHR-F-005', dbID: 'f5', facultyName: 'Muhammad Zubair', designation: 'Lecturer', department: 'CS', password: '123', email: 'mzubair@cuivehari.edu.pk', phone: '+92 322 1122334' },
     { id: 'VHR-F-006', dbID: 'f6', facultyName: 'Muhammad Sami Ullah', designation: 'Lecturer', department: 'CS', password: '123', email: 'samiullah@cuivehari.edu.pk', phone: '+92 300 5566778' },
     { id: 'VHR-F-007', dbID: 'f7', facultyName: 'Hafiz Yasir Ghafoor', designation: 'Lecturer', department: 'CS', password: '123', email: 'yasir.ghafoor@cuivehari.edu.pk', phone: '+92 345 8899001' },
+    { id: 'VHR-F-020', dbID: 'f20', facultyName: 'Dr. Rab Nawaz Bashir', designation: 'Assistant Professor', department: 'CS', password: '123', email: 'rabnawaz@cuivehari.edu.pk', phone: '+92 333 1112223' },
+    { id: 'VHR-F-021', dbID: 'f21', facultyName: 'Muhammad Zaheer Akhtar', designation: 'Lecturer', department: 'CS', password: '123', email: 'mzaheer@cuivehari.edu.pk', phone: '+92 334 2223334' },
     // --- Department of Management Sciences ---
     { id: 'VHR-F-008', dbID: 'f8', facultyName: 'Dr. Orangzab', designation: 'Associate Professor', department: 'MGMT', password: '123', email: 'orangzab@cuivehari.edu.pk', phone: '+92 321 4455667' },
     { id: 'VHR-F-009', dbID: 'f9', facultyName: 'Dr. Muzhar Javed', designation: 'Assistant Professor', department: 'MGMT', password: '123', email: 'muzhar.javed@cuivehari.edu.pk', phone: '+92 315 3344557' },
