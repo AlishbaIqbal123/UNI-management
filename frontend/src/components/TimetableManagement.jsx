@@ -306,7 +306,7 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
               <label style={{fontSize: '12px', display: 'block', marginBottom: '4px'}}>Department</label>
               <select value={uploadDept} onChange={e => setUploadDept(e.target.value)} className="form-input-premium" style={{minWidth: '180px'}}>
                 <option value="">Select Department...</option>
-                {departments && departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                {departments && departments.map(d => <option key={d.departmentID} value={d.departmentID}>{d.departmentName}</option>)}
               </select>
             </div>
           )}
@@ -372,7 +372,7 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
             <label style={{fontSize: '12px', display: 'block', marginBottom: '4px'}}>Select Department</label>
             <select className="form-input-premium" value={selectedDept} onChange={e => { setSelectedDept(e.target.value); setSelectedTeacher(''); }} style={{minWidth: '220px', margin: 0}}>
               <option value="">-- Choose Department --</option>
-              {departments && departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              {departments && departments.map(d => <option key={d.departmentID} value={d.departmentID}>{d.departmentName}</option>)}
             </select>
           </div>
           {selectedDept && (
