@@ -12,6 +12,7 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
   const [semesterLabel, setSemesterLabel] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [deleteConfirmUpload, setDeleteConfirmUpload] = useState(null);
   const [uploadDept, setUploadDept] = useState('');
   
   const [selectedDept, setSelectedDept] = useState('');
@@ -256,8 +257,6 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
   };
 
   const handleDelete = async (upload) => {
-    if (!window.confirm("Permanent Action: This will remove the document and all associated grid entries. Continue?")) return;
-    
     setDeletingId(upload.id);
     
     // Optimistic local update
@@ -368,7 +367,7 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
                     className="btn-text-only" 
                     style={{color: 'var(--color-danger)', opacity: deletingId === u.id ? 0.5 : 1}} 
                     disabled={deletingId === u.id}
-                    onClick={() => handleDelete(u)}
+                    onClick={() => setDeleteConfirmUpload(u)}
                   >
                     {deletingId === u.id ? 'Deleting...' : 'Delete'}
                   </button>
@@ -415,6 +414,24 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
              <p style={{opacity: 0.6}}>Select a department and an instructor to view their parsed timetable slots.</p>
           </div>
         )}
+      {deleteConfirmUpload && (
+        <div className="modal-overlay-premium" style={{zIndex: 9999, display:'flex', alignItems:'center', justifyContent:'center', position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', backdropFilter:'blur(4px)'}}>
+          <div className="glass-card p-40 fade-in" style={{maxWidth:'450px', width:'90%', textAlign:'center', background:'var(--color-bg)', border:'1px solid var(--color-border)', borderRadius:'12px', boxShadow:'0 20px 40px rgba(0,0,0,0.3)'}}>
+            <h2 style={{color:'var(--color-danger)', fontSize:'24px', marginBottom:'16px'}}>Expunge Schedule?</h2>
+            <p style={{fontSize:'14px', margin:'16px 0 24px', opacity:0.8, color:'var(--color-ink)'}}>
+              This will permanently remove the semester timetable, all parsed schedules, and associated grid entries. This action is irreversible.
+            </p>
+            <div style={{display:'flex', gap:'16px'}}>
+              <button className="btn-text-only" style={{flex:1, fontWeight:700}} onClick={() => setDeleteConfirmUpload(null)}>CANCEL</button>
+              <button className="btn-primary-premium" style={{background:'var(--color-danger)', border:'none', flex:1}} onClick={async () => {
+                const u = deleteConfirmUpload;
+                setDeleteConfirmUpload(null);
+                await handleDelete(u);
+              }}>CONFIRM DELETION</button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
