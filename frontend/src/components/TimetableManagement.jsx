@@ -307,10 +307,22 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
       const textContent = await page.getTextContent();
       const items = textContent.items;
 
-      // Extract title (usually top-most item)
-      const sortedItems = [...items].sort((a, b) => b.transform[5] - a.transform[5]); // Sort by Y descending
-      const titleItem = sortedItems[0];
-      const pageTitle = titleItem ? titleItem.str : '';
+      // Robust page title extraction: ignore generic institutional headers at the top
+      const validTitleItems = items.filter(item => {
+        const str = item.str.trim();
+        if (!str) return false;
+        const low = str.toLowerCase();
+        if (low.includes('comsats')) return false;
+        if (low.includes('centralized')) return false;
+        if (low.includes('timetable') && !low.includes('teacher')) return false;
+        // Also ignore isolated single characters or numbers at the top
+        if (str.length <= 2 && !isNaN(str)) return false;
+        return true;
+      });
+
+      const sortedTitleItems = [...validTitleItems].sort((a, b) => b.transform[5] - a.transform[5]);
+      const titleItem = sortedTitleItems[0];
+      const pageTitle = titleItem ? titleItem.str.trim() : '';
 
       const isTeacher = globalType === 'teacher' || pageTitle.toLowerCase().includes('teacher');
       const ownerLabel = isTeacher ? pageTitle.replace(/Teacher\s+/i, '').trim() : pageTitle.trim();
