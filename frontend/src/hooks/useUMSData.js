@@ -471,10 +471,10 @@ export function useUMSData() {
             resRes, resFin, resPay, resUploads, resEntries, 
             resSessions, resAttend, resFeeStructures, resAsst, resMarks, resResets
           ] = await Promise.all([
-             safeQuery(supabase.from('students').select('*')),
-             safeQuery(supabase.from('faculty').select('*')),
-             safeQuery(supabase.from('courses').select('*')),
-             safeQuery(supabase.from('departments').select('*')),
+             safeQuery(supabase.from('students').select('*, profiles:profile_id(full_name, email, phone_number), departments:department_uuid(code)')),
+             safeQuery(supabase.from('faculty').select('*, profiles:profile_id(full_name, email, phone_number), departments:department_uuid(code)')),
+             safeQuery(supabase.from('courses').select('*, departments:department_uuid(code)')),
+             safeQuery(supabase.from('departments').select('*, profiles:head_of_department_id(full_name)')),
              safeQuery(supabase.from('enrollments').select('*')),
              safeQuery(supabase.from('results').select('*')),
              safeQuery(supabase.from('financials').select('*')),
@@ -491,22 +491,22 @@ export function useUMSData() {
 
           if (resStudents.data?.length) {
             const fetchedStudents = resStudents.data
-              .filter(s => s.full_name && s.full_name.trim() !== '')
+              .filter(s => s.profiles?.full_name && s.profiles.full_name.trim() !== '')
               .map((s, idx) => {
                 const regId = s.university_id && s.university_id.length < 20 ? s.university_id : `FA24-BCS-${String(idx+1).padStart(3, '0')}`;
                 const localMatch = localStudents.find(ls => ls.id === regId || ls.regNumber === regId);
                 return { 
                   id: regId, 
                   dbID: s.profile_id || s.uuid || s.id, 
-                  name: s.full_name, 
+                  name: s.profiles.full_name, 
                   regNumber: regId,
                   program: s.program || (localMatch?.program) || 'BSCS',
-                  departmentID: s.department_id || (localMatch?.departmentID) || 'CS',
+                  departmentID: s.departments?.code || (localMatch?.departmentID) || 'CS',
                   batch: s.batch || (localMatch?.batch) || 'Fall 2024',
                   section: s.section || (localMatch?.section) || 'A',
                   password: (localMatch?.password) || '123',
-                  email: s.email || (localMatch?.email),
-                  phone: s.phone || (localMatch?.phone) || ''
+                  email: s.profiles.email || (localMatch?.email),
+                  phone: s.profiles.phone_number || (localMatch?.phone) || ''
                 };
               });
             localStudents = [...localStudents.filter(s => !fetchedStudents.some(fs => fs.id === s.id)), ...fetchedStudents];
@@ -514,20 +514,20 @@ export function useUMSData() {
 
           if (resFaculty.data?.length) {
             const fetchedFaculty = resFaculty.data
-              .filter(f => f.full_name && f.full_name.trim() !== '') // Skip records without proper names
+              .filter(f => f.profiles?.full_name && f.profiles.full_name.trim() !== '') // Skip records without proper names
               .map(f => {
                 const empId = f.employee_id || f.id;
                 const localMatch = localFaculty.find(lf => lf.id === empId);
                 return { 
                   id: empId, 
                   dbID: f.profile_id || f.uuid || f.id, 
-                  facultyName: f.full_name, 
+                  facultyName: f.profiles.full_name, 
                   designation: f.designation || (localMatch?.designation) || 'Lecturer', 
-                  department: f.department || (localMatch?.department) || '',
+                  department: f.departments?.code || (localMatch?.department) || '',
                   role: (empId || '').includes('FIN') ? 'Finance' : 'Faculty', 
                   password: (localMatch?.password) || ((empId || '').includes('FIN') ? 'admin' : '123'),
-                  email: f.email || (localMatch?.email),
-                  phone: f.phone || (localMatch?.phone) || ''
+                  email: f.profiles.email || (localMatch?.email),
+                  phone: f.profiles.phone_number || (localMatch?.phone) || ''
                 };
               });
             localFaculty = [...localFaculty.filter(f => !fetchedFaculty.some(ff => ff.id === f.id)), ...fetchedFaculty];
@@ -544,7 +544,7 @@ export function useUMSData() {
                     courseName: c.title || c.name, 
                     credits: c.credit_hours || (localMatch?.credits) || 3,
                     assignedFacultyID: c.faculty_id || (localMatch?.assignedFacultyID),
-                    department: c.department || (localMatch?.department) || '',
+                    department: c.departments?.code || (localMatch?.department) || '',
                     offeredToBatches: c.offered_batches ? c.offered_batches.split(',').map(s => s.trim()) : (localMatch?.offeredToBatches) || ['Fall 2024', 'Spring 2025'],
                     prerequisites: c.prerequisites ? c.prerequisites.split(',').map(s => s.trim()) : (localMatch?.prerequisites) || ['None']
                   };
@@ -561,7 +561,7 @@ export function useUMSData() {
                 return { 
                   departmentID: deptCode, 
                   departmentName: d.name || (localMatch?.departmentName) || deptCode, 
-                  headOfDepartment: d.hod_name || (localMatch?.headOfDepartment) || 'TBD',
+                  headOfDepartment: d.profiles?.full_name || (localMatch?.headOfDepartment) || 'TBD',
                   programs: d.programs || (localMatch?.programs) || []
                 };
               });

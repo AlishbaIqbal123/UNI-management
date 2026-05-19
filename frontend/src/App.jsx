@@ -244,6 +244,10 @@ function App() {
         const executeAssign = async () => {
           if (isDatabaseConnected()) {
             try {
+              const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+              if (hodUUID && !isUUID(hodUUID)) {
+                throw new Error(`Cannot sync leadership with mock/invalid UUID: "${hodUUID}"`);
+              }
               const { error } = await supabase
                 .from('departments')
                 .update({ head_of_department_id: hodUUID })
@@ -420,6 +424,10 @@ function App() {
 
             if (data) {
               // Editing student profile
+              const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+              if (data.dbID && !isUUID(data.dbID)) {
+                throw new Error(`Cannot update mock profile ID: "${data.dbID}"`);
+              }
               const { error: profileErr } = await supabase
                 .from('profiles')
                 .update({ full_name: name, email: email, phone_number: formData.phone })
@@ -531,6 +539,10 @@ function App() {
           try {
             if (data) {
               // Editing faculty
+              const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+              if (data.dbID && !isUUID(data.dbID)) {
+                throw new Error(`Cannot update mock profile ID: "${data.dbID}"`);
+              }
               const { error: profileErr } = await supabase
                 .from('profiles')
                 .update({ full_name: name, email: email, phone_number: formData.phone })
@@ -1406,38 +1418,71 @@ function App() {
         const isStudentTimetableMatch = (ownerLabel, student) => {
           if (!ownerLabel || !student) return false;
           const label = ownerLabel.toUpperCase().replace(/\s+/g, '');
-          const batchCode = getBatchCode(student.batch || '').toUpperCase();
+          
+          // Parse student registration number if available
+          const regNum = (student.regNumber || student.id || '').toUpperCase().trim();
+          const regParts = regNum.split('-'); // e.g. ["FA24", "BCS", "055"]
+          
+          let batch = "";
+          let prog = "";
+          
+          if (regParts.length >= 2) {
+            batch = regParts[0]; // e.g. FA24
+            prog = regParts[1];  // e.g. BCS
+          } else {
+            batch = getBatchCode(student.batch || '').toUpperCase();
+            prog = (student.program || '').toUpperCase();
+          }
+          
           const section = (student.section || 'A').toUpperCase();
-          const prog = (student.program || '').toUpperCase();
-          const reg = (student.regNumber || '').toUpperCase();
           
-          const hasBatch = label.includes(batchCode);
-          const hasSection = label.endsWith(section) || label.includes(`-${section}`) || label.includes(section);
+          // 1. Match Batch
+          const hasBatch = label.includes(batch);
           
+          // 2. Match Program
           let hasProgram = false;
-          if (prog.includes("COMPUTER") || prog.includes("CS") || reg.includes("BCS")) {
+          if (prog.includes("BCS") || prog.includes("CS") || prog.includes("COMPUTER")) {
             hasProgram = label.includes("BCS") || label.includes("CS");
-          } else if (prog.includes("SOFTWARE") || prog.includes("SE") || reg.includes("BSE")) {
+          } else if (prog.includes("BSE") || prog.includes("SE") || prog.includes("SOFTWARE")) {
             hasProgram = label.includes("BSE") || label.includes("SE");
-          } else if (prog.includes("BUSINESS") || prog.includes("BBA") || reg.includes("BBA")) {
+          } else if (prog.includes("BBA") || prog.includes("BUSINESS")) {
             hasProgram = label.includes("BBA");
           } else {
-            hasProgram = true; 
+            hasProgram = label.includes(prog);
           }
-          return hasBatch && hasSection && hasProgram;
+          
+          // 3. Match Section (e.g. section "A" matches ends-with "A", "-A", or has it isolated)
+          const hasSection = label.endsWith(`-${section}`) || 
+                             label.endsWith(section) || 
+                             label.includes(`-${section}-`) || 
+                             label.includes(`-${section} `);
+          
+          return hasBatch && hasProgram && hasSection;
         };
 
-        // Extract all distinct student classes uploaded
-        const availableClasses = [...new Set(
+        const activeStudent = studentRecord || { batch: studentBatch, section: studentSection, regNumber: user.regNumber };
+        const reg = (activeStudent.regNumber || activeStudent.id || '').toUpperCase().trim();
+        const regParts = reg.split('-');
+        const batchCode = regParts.length >= 2 ? regParts[0] : getBatchCode(activeStudent.batch || '').toUpperCase();
+
+        // Extract distinct student classes and filter dynamically by the student's batch
+        const allUploadedClasses = [...new Set(
           timetableEntries
             .filter(e => e.timetable_type === 'student')
             .map(e => e.owner_label)
         )].sort();
 
+        const filteredClasses = allUploadedClasses.filter(c => {
+          if (!batchCode) return true;
+          return c.toUpperCase().replace(/\s+/g, '').includes(batchCode);
+        });
+
+        const availableClasses = filteredClasses.length > 0 ? filteredClasses : allUploadedClasses;
+
         // Determine default class for student
         let defaultClass = selectedTimetableClass;
-        if (!defaultClass) {
-          const matched = availableClasses.find(c => isStudentTimetableMatch(c, studentRecord || { batch: studentBatch, section: studentSection }));
+        if (!defaultClass || !availableClasses.includes(defaultClass)) {
+          const matched = availableClasses.find(c => isStudentTimetableMatch(c, activeStudent));
           defaultClass = matched || availableClasses[0] || '';
         }
 
@@ -1484,7 +1529,8 @@ function App() {
       case 'finance': return <FinanceManagement finance={finance} feePayments={feePayments} setFeePayments={setFeePayments} user={user} students={students} departments={departments} setFinance={setFinance} openForm={openForm} feeStructures={feeStructures} setFeeStructures={setFeeStructures} />;
       
       case 'faculty-timetable': {
-        const teacherName = user.facultyName || user.name;
+        const facultyRecord = faculty.find(f => f.id === user.id || f.dbID === user.id);
+        const teacherName = facultyRecord?.facultyName || user.facultyName || user.name || '';
         const cleanName = (n) => {
           if (!n) return '';
           return n

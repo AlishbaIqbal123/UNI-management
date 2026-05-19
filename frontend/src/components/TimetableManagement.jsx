@@ -25,24 +25,218 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
       .replace(/[^a-z0-9]/g, '').trim();
   };
 
-  const getTeacherEntries = (teacherName) => {
+  const extractSemanticParts = (itemsArray) => {
+    let subject = "";
+    let instructor = "Faculty";
+    let room = "TBD";
+    let batchSection = "";
+    let isLab = false;
+
+    // Filter and preprocess cleanItems
+    let cleanItems = [];
+    (itemsArray || []).forEach(item => {
+      if (!item) return;
+      const trimmed = item.trim();
+      if (!trimmed) return;
+      
+      // Split by common separators to get fine-grained components
+      if (trimmed.includes(' - ')) {
+        cleanItems.push(...trimmed.split(' - '));
+      } else if (trimmed.includes(' / ')) {
+        cleanItems.push(...trimmed.split(' / '));
+      } else if (trimmed.includes('\n')) {
+        cleanItems.push(...trimmed.split('\n'));
+      } else {
+        cleanItems.push(trimmed);
+      }
+    });
+    cleanItems = cleanItems.map(i => i.trim()).filter(i => i.length > 0);
+
+    if (cleanItems.length === 0) {
+      return { subject: "TBD", instructor: "Faculty", room: "TBD", batchSection: "", isLab: false };
+    }
+
+    // Identify LAB
+    const fullText = cleanItems.join(' ').toLowerCase();
+    isLab = fullText.includes('-lab') || fullText.includes(' lab') || fullText.includes('practical');
+
+    // 1. Identify Room Code
+    const roomPatterns = [
+      /[A-Za-z]+-\d+/i,                // CS-02, Room-5
+      /\bRoom\s*\d+\b/i,               // Room 5
+      /\bLab\s*\d+\b/i,                // Lab 1
+      /\bSeminar\s*Room\b/i,           // Seminar Room
+      /\b[A-Za-z]\d+\b/                // B12, C1
+    ];
+
+    let roomIndex = -1;
+    for (let i = 0; i < cleanItems.length; i++) {
+      for (const pattern of roomPatterns) {
+        if (pattern.test(cleanItems[i])) {
+          room = cleanItems[i].match(pattern)[0];
+          roomIndex = i;
+          break;
+        }
+      }
+      if (roomIndex !== -1) break;
+    }
+
+    // 2. Identify Batch/Section (e.g. FA24-BCS-A, SP23-BSE-B)
+    const batchSectionPattern = /\b[A-Z]{2}\d{2}-[A-Z0-9-]+\b/i;
+    let batchSectionIndex = -1;
+    for (let i = 0; i < cleanItems.length; i++) {
+      if (i === roomIndex) continue;
+      if (batchSectionPattern.test(cleanItems[i])) {
+        batchSection = cleanItems[i].match(batchSectionPattern)[0].toUpperCase();
+        batchSectionIndex = i;
+        break;
+      }
+    }
+
+    // 3. Identify Instructor Name
+    const instructorPrefixPattern = /\b(Dr|Prof|Engr|Mr|Ms|Mrs|Lec|Lecturer)\b/i;
+    let instructorIndex = -1;
+
+    // First try: Prefix search
+    for (let i = 0; i < cleanItems.length; i++) {
+      if (i === roomIndex || i === batchSectionIndex) continue;
+      if (instructorPrefixPattern.test(cleanItems[i])) {
+        instructor = cleanItems[i];
+        instructorIndex = i;
+        break;
+      }
+    }
+
+    // Second try: Exact matching of known faculty members
+    if (instructorIndex === -1 && faculty && faculty.length > 0) {
+      for (let i = 0; i < cleanItems.length; i++) {
+        if (i === roomIndex || i === batchSectionIndex) continue;
+        const itemCleaned = cleanName(cleanItems[i]);
+        
+        for (const f of faculty) {
+          if (f.facultyName && f.facultyName.length > 3) {
+            const fCleaned = cleanName(f.facultyName);
+            if (itemCleaned === fCleaned || itemCleaned.includes(fCleaned) || fCleaned.includes(itemCleaned)) {
+              instructor = f.facultyName;
+              instructorIndex = i;
+              break;
+            }
+          }
+        }
+        if (instructorIndex !== -1) break;
+      }
+    }
+
+    // Third try: Capitalized words length (2-4 words)
+    if (instructorIndex === -1) {
+      for (let i = 0; i < cleanItems.length; i++) {
+        if (i === roomIndex || i === batchSectionIndex) continue;
+        const words = cleanItems[i].split(/\s+/);
+        if (words.length >= 2 && words.length <= 4 && words.every(w => /^[A-Z]/.test(w))) {
+          instructor = cleanItems[i];
+          instructorIndex = i;
+          break;
+        }
+      }
+    }
+
+    // 4. Subject Name
+    const subjectItems = [];
+    for (let i = 0; i < cleanItems.length; i++) {
+      if (i === roomIndex || i === batchSectionIndex || i === instructorIndex) continue;
+      if (/^\(\s*\d+\s*h\s*\)$/i.test(cleanItems[i])) continue;
+      subjectItems.push(cleanItems[i]);
+    }
+
+    if (subjectItems.length > 0) {
+      subject = subjectItems.join(' ');
+    } else {
+      subject = cleanItems[0] || "Academic Session";
+    }
+
+    // Clean up trailing punctuation, spans or dashes
+    subject = subject.replace(/\s*\(2h\)/gi, '')
+                     .replace(/\s*\(3h\)/gi, '')
+                     .replace(/[-/]+$/, '')
+                     .trim();
+
+    // If single item without delimiters, parse logically
+    if (cleanItems.length === 1) {
+      const text = cleanItems[0];
+      let matchedRoom = "TBD";
+      for (const pattern of roomPatterns) {
+        if (pattern.test(text)) {
+          matchedRoom = text.match(pattern)[0];
+          break;
+        }
+      }
+
+      let matchedInstructor = "Faculty";
+      const prefixRegex = /(?:Dr\.|Prof\.|Engr\.|Mr\.|Ms\.|Mrs\.|Lec\.|Lecturer\.|Dr|Prof|Engr|Mr|Ms|Mrs|Lec)\s+[A-Z][a-zA-z]+(?:\s+[A-Z][a-zA-z]+){0,2}/i;
+      const match = text.match(prefixRegex);
+      if (match && match[0]) {
+        matchedInstructor = match[0].trim();
+      }
+
+      let matchedSubject = text;
+      if (matchedInstructor !== "Faculty") {
+        matchedSubject = text.split(matchedInstructor)[0].trim();
+      } else if (matchedRoom !== "TBD") {
+        matchedSubject = text.split(matchedRoom)[0].trim();
+      }
+
+      matchedSubject = matchedSubject.replace(/[-/]+$/, '').trim();
+
+      return {
+        subject: matchedSubject || "Academic Session",
+        instructor: matchedInstructor,
+        room: matchedRoom,
+        batchSection: "",
+        isLab
+      };
+    }
+
+    return { subject, instructor, room, batchSection, isLab };
+  };
+
+  const getTeacherEntries = (teacherName, teacherDept) => {
     if (!teacherName || !entries) return [];
-    const cleanedTeacherName = cleanName(teacherName);
+    
+    const matchTeacherNameAndDept = (label, name, dept) => {
+      if (!label || !name) return false;
+      const cleanTargetName = name.toLowerCase()
+        .replace(/\b(dr|engr|prof|professor|associate|assistant|lecturer|mr|ms|mrs|phd)\b/g, '')
+        .replace(/[^a-z0-9]/g, '')
+        .trim();
+      let entryNamePart = label.split('(')[0];
+      const cleanEntryName = entryNamePart.toLowerCase()
+        .replace(/\b(dr|engr|prof|professor|associate|assistant|lecturer|mr|ms|mrs|phd)\b/g, '')
+        .replace(/[^a-z0-9]/g, '')
+        .trim();
+      const namesMatch = cleanEntryName.includes(cleanTargetName) || cleanTargetName.includes(cleanEntryName);
+      if (!namesMatch) return false;
+      
+      const deptMatch = label.match(/\(([^)]+)\)$/);
+      if (deptMatch && dept) {
+        const entryDept = deptMatch[1].toLowerCase().trim();
+        const targetDeptClean = dept.toLowerCase().trim();
+        return entryDept === targetDeptClean || entryDept.includes(targetDeptClean) || targetDeptClean.includes(entryDept);
+      }
+      return true;
+    };
+
     return entries.map(e => {
       const isStudentMatch = e.timetable_type === 'student' && e.instructor && (
-        cleanName(e.instructor).includes(cleanedTeacherName) || 
-        cleanedTeacherName.includes(cleanName(e.instructor))
+        matchTeacherNameAndDept(e.instructor, teacherName, teacherDept)
       );
       if (isStudentMatch) return { ...e, batch_section: e.owner_label };
       return e;
     }).filter(e => {
       if (e.timetable_type === 'teacher' && e.owner_label) {
-        const cleanedOwner = cleanName(e.owner_label);
-        return cleanedOwner.includes(cleanedTeacherName) || cleanedTeacherName.includes(cleanedOwner);
+        return matchTeacherNameAndDept(e.owner_label, teacherName, teacherDept);
       }
       if (e.timetable_type === 'student' && e.instructor) {
-        const cleanedInstr = cleanName(e.instructor);
-        return cleanedInstr.includes(cleanedTeacherName) || cleanedTeacherName.includes(cleanedInstr);
+        return matchTeacherNameAndDept(e.instructor, teacherName, teacherDept);
       }
       return false;
     });
@@ -118,7 +312,7 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
       const titleItem = sortedItems[0];
       const pageTitle = titleItem ? titleItem.str : '';
 
-      const isTeacher = pageTitle.toLowerCase().includes('teacher');
+      const isTeacher = globalType === 'teacher' || pageTitle.toLowerCase().includes('teacher');
       const ownerLabel = isTeacher ? pageTitle.replace(/Teacher\s+/i, '').trim() : pageTitle.trim();
 
       // Heuristic parsing:
@@ -181,12 +375,12 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
       Object.keys(grid).forEach(day => {
         Object.keys(grid[day]).forEach(slotStr => {
           const slot = parseInt(slotStr);
-          const cellText = grid[day][slot].join(' ').trim();
+          const itemsArray = grid[day][slot];
+          const cellText = itemsArray.join(' ').trim();
           if (cellText.length < 3) return;
 
-          // Step 4 rules:
-          const isLab = cellText.toLowerCase().includes('-lab');
-          const hasSpan = cellText.toLowerCase().includes('(2h)') || cellText.length > 50; // Heuristic for span
+          const parsed = extractSemanticParts(itemsArray);
+          const hasSpan = cellText.toLowerCase().includes('(2h)') || cellText.toLowerCase().includes('(3h)') || cellText.length > 60;
 
           allEntries.push({
             upload_id: uploadId,
@@ -195,11 +389,11 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
             day,
             slot_number: slot,
             time_label: getTimeLabel(slot),
-            subject: cellText.split('\n')[0].substring(0, 30),
-            room_code: cellText.match(/[A-Z]+-\d+/)?.[0] || 'TBD',
-            instructor: isTeacher ? '' : (cellText.match(/Dr\.\s\w+|Prof\.\s\w+/)?.[0] || 'Faculty'),
-            batch_section: isTeacher ? (cellText.match(/[A-Z]+-[A-Z0-9-]+/)?.[0] || 'N/A') : '',
-            session_type: isLab ? 'lab' : 'class',
+            subject: parsed.subject,
+            room_code: parsed.room,
+            instructor: isTeacher ? ownerLabel : parsed.instructor,
+            batch_section: isTeacher ? (parsed.batchSection || parsed.subject || 'N/A') : ownerLabel,
+            session_type: parsed.isLab ? 'lab' : 'class',
             span: hasSpan ? 2 : 1
           });
         });
@@ -211,33 +405,77 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
     }
     setEntries(prev => [...prev, ...allEntries]);
 
-    // Auto-sync missing faculty members if it's a teacher timetable and a department was selected
-    if (globalType === 'teacher' && selectedUploadDept) {
-      const uniqueTeacherNames = [...new Set(allEntries.map(e => e.owner_label))].filter(Boolean);
+    // Auto-sync missing faculty members if a department is selected
+    if (selectedUploadDept) {
+      const teacherNames = globalType === 'teacher' 
+        ? allEntries.map(e => e.owner_label) 
+        : allEntries.map(e => e.instructor);
+
+      const uniqueTeacherNames = [...new Set(teacherNames)]
+        .map(name => name ? name.split('(')[0].trim() : '')
+        .filter(name => name && name.toLowerCase() !== 'faculty' && name.trim().length > 3);
+
       const newFacultyMembers = [];
       
-      uniqueTeacherNames.forEach(teacherName => {
+      for (const teacherName of uniqueTeacherNames) {
         const cleanedExtractedName = cleanName(teacherName);
-        const exists = faculty.some(f => cleanName(f.facultyName) === cleanedExtractedName || cleanedExtractedName.includes(cleanName(f.facultyName)));
         
-        if (!exists) {
-          const newFaculty = {
-            id: `AUTO-F-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            dbID: `auto-f-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            facultyName: teacherName,
-            designation: 'Lecturer', // Default assumption
-            department: selectedUploadDept,
-            password: '123',
-            email: `${teacherName.replace(/\s+/g, '.').toLowerCase()}@cuivehari.edu.pk`,
-            phone: '+92 000 0000000'
-          };
-          newFacultyMembers.push(newFaculty);
+        // Skip if already in local faculty state
+        const existsLocally = faculty.some(f => {
+          const cName = cleanName(f.facultyName);
+          return cName === cleanedExtractedName || cleanedExtractedName.includes(cName) || cName.includes(cleanedExtractedName);
+        });
+
+        if (existsLocally) continue;
+
+        const newId = `AUTO-F-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const dbUUID = crypto.randomUUID ? crypto.randomUUID() : `auto-f-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        
+        const newFaculty = {
+          id: newId,
+          dbID: dbUUID,
+          facultyName: teacherName,
+          designation: teacherName.toLowerCase().includes('dr') ? 'Assistant Professor' : 'Lecturer',
+          department: selectedUploadDept,
+          password: '123',
+          email: `${teacherName.replace(/^(Dr\.|Prof\.|Engr\.|Mr\.|Ms\.|Mrs\.)\s*/i, '').replace(/\s+/g, '.').toLowerCase()}@cuivehari.edu.pk`,
+          phone: '+92 300 ' + Math.floor(1000000 + Math.random() * 9000000)
+        };
+
+        if (isDatabaseConnected()) {
+          try {
+            const { error: profileErr } = await supabase
+              .from('profiles')
+              .insert({
+                id: dbUUID,
+                email: newFaculty.email,
+                role: 'FACULTY',
+                full_name: teacherName,
+                phone_number: newFaculty.phone
+              });
+            if (!profileErr) {
+              await supabase
+                .from('faculty')
+                .insert({
+                  profile_id: dbUUID,
+                  employee_id: newId,
+                  designation: newFaculty.designation
+                });
+            }
+          } catch (dbErr) {
+            console.error('Failed to insert auto-extracted faculty to Supabase:', dbErr);
+          }
         }
-      });
+
+        newFacultyMembers.push(newFaculty);
+      }
 
       if (newFacultyMembers.length > 0) {
         if (setFaculty) {
           setFaculty(prev => [...prev, ...newFacultyMembers]);
+        }
+        if (notify) {
+          notify(`Auto-added ${newFacultyMembers.length} new faculty members to the ${selectedUploadDept} department!`);
         }
         console.log(`Auto-added ${newFacultyMembers.length} missing faculty members for department ${selectedUploadDept}`);
       }
@@ -311,15 +549,13 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
               <option value="teacher">Teacher Timetables</option>
             </select>
           </div>
-          {type === 'teacher' && (
-            <div>
-              <label style={{fontSize: '12px', display: 'block', marginBottom: '4px'}}>Department</label>
-              <select value={uploadDept} onChange={e => setUploadDept(e.target.value)} className="form-input-premium" style={{minWidth: '180px'}}>
-                <option value="">Select Department...</option>
-                {departments && departments.map(d => <option key={d.departmentID} value={d.departmentID}>{d.departmentName}</option>)}
-              </select>
-            </div>
-          )}
+          <div>
+            <label style={{fontSize: '12px', display: 'block', marginBottom: '4px'}}>Department</label>
+            <select value={uploadDept} onChange={e => setUploadDept(e.target.value)} className="form-input-premium" style={{minWidth: '180px'}}>
+              <option value="">Select Department...</option>
+              {departments && departments.map(d => <option key={d.departmentID} value={d.departmentID}>{d.departmentName}</option>)}
+            </select>
+          </div>
           <div>
             <label style={{fontSize: '12px', display: 'block', marginBottom: '4px'}}>Semester Label</label>
             <input 
@@ -406,7 +642,7 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
         </div>
         {selectedTeacher ? (
           <TimetableGrid 
-            entries={getTeacherEntries(selectedTeacher)} 
+            entries={getTeacherEntries(selectedTeacher, selectedDept)} 
             title={`Faculty Timetable — ${selectedTeacher}`} 
           />
         ) : (
