@@ -350,6 +350,11 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
         // Skip header/footer and title
         if (item.transform[5] > titleItem.transform[5] - 20) return;
         if (item.str.toLowerCase().includes('break')) return; // Step 4: Skip "Break"
+        
+        // Skip day names (row headers) and generic footers
+        const trimmedStr = item.str.trim();
+        if (days.map(d => d.toLowerCase()).includes(trimmedStr.toLowerCase())) return;
+        if (trimmedStr.toLowerCase().includes('asc timetables') || trimmedStr.toLowerCase().includes('centralized timetable')) return;
 
         // Find nearest day
         let nearestDay = null;
@@ -404,7 +409,7 @@ const TimetableManagement = ({ uploads, setUploads, entries, setEntries, departm
             subject: parsed.subject,
             room_code: parsed.room,
             instructor: isTeacher ? ownerLabel : parsed.instructor,
-            batch_section: isTeacher ? (parsed.batchSection || parsed.subject || 'N/A') : ownerLabel,
+            batch_section: isTeacher ? (parsed.batchSection || 'N/A') : ownerLabel,
             session_type: parsed.isLab ? 'lab' : 'class',
             span: hasSpan ? 2 : 1
           });
